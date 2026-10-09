@@ -40,6 +40,10 @@ export interface Report {
   trust_reasons: string[]
   demo: boolean
   age: string
+  status: 'active' | 'resolved'
+  confirmations: number
+  disputes: number
+  resolved_votes: number
   ai_used?: boolean
   language?: string | null
 }
@@ -121,4 +125,19 @@ export interface AssistantAnswer {
   report_ids: string[]
   engine: 'gemini+maps' | 'gemini' | 'rules'
   answered_at: string
+}
+
+export interface Hotspot {
+  lat: number
+  lng: number
+  band: string
+  weight: number
+  reports: number
+  top_category: string
+}
+
+export interface HotspotResponse {
+  model: { samples: number; cells: number; hotspots: number; trained_at: string | null; half_life_days: number }
+  hotspots: Hotspot[]
+  notice: string
 }

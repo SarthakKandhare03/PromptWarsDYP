@@ -1,5 +1,5 @@
 import type {
-  AssistantAnswer, CityInfo, CompareDims, CompareResult, Place, Pulse, Report, RouteResponse,
+  AssistantAnswer, CityInfo, CompareDims, CompareResult, HotspotResponse, Place, Pulse, Report, RouteResponse,
 } from './types'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -33,10 +33,15 @@ export const api = {
     }),
   compare: (placeIds: string[], weights: Record<CompareDims, number>) =>
     postJson<CompareResult[]>('/compare', { place_ids: placeIds, weights }),
-  assistant: (query: string, location?: [number, number]) =>
+  assistant: (query: string, location?: [number, number], history: { role: 'user' | 'assistant'; text: string }[] = []) =>
     postJson<AssistantAnswer>('/assistant', {
       query,
       location: location ? { lat: location[0], lng: location[1] } : null,
+      history: history.slice(-8),
     }),
   submitReport: (form: FormData) => request<Report>('/reports', { method: 'POST', body: form }),
+  vote: (reportId: string, vote: 'confirm' | 'dispute' | 'resolved', voterId: string) =>
+    postJson<Report>(`/reports/${encodeURIComponent(reportId)}/vote`, { vote, voter_id: voterId }),
+  hotspots: (hour?: number) => request<HotspotResponse>(`/insights/hotspots${hour == null ? '' : `?hour=${hour}`}`),
+  config: () => request<{ google_maps_key: string | null }>('/config'),
 }

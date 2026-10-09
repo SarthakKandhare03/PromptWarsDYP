@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from app.config import settings
 from app.data.pune import ACCIDENT_ZONES, CITY, PLACES, PLACES_BY_ID, SUPPORT_POINTS
 from app.models import (
+    VOTER_ID_PATTERN,
     AssistantRequest,
     CompareRequest,
     Coord,
@@ -23,6 +24,7 @@ from app.models import (
     RouteRequest,
     RouteResponse,
     ScoredRoute,
+    VoteRequest,
 )
 from app.services import gemini
 from app.services.assistant import match_place_ids, rule_based_answer
@@ -43,10 +45,14 @@ app.add_middleware(
 
 _hits: dict[str, deque[float]] = defaultdict(deque)
 
+GOOGLE_MAPS_SRC = "https://maps.googleapis.com https://maps.gstatic.com"
 CSP = (
-    "default-src 'self'; img-src 'self' data: blob: https://tile.openstreetmap.org https://thumb.wikimedia.org https://upload.wikimedia.org; "
+    "default-src 'self'; "
+    "img-src 'self' data: blob: https://tile.openstreetmap.org https://thumb.wikimedia.org https://upload.wikimedia.org "
+    f"{GOOGLE_MAPS_SRC} https://*.googleapis.com https://*.gstatic.com https://*.ggpht.com; "
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; "
-    "script-src 'self'; connect-src 'self'; media-src 'self' blob:; frame-ancestors 'none'"
+    f"script-src 'self' {GOOGLE_MAPS_SRC}; connect-src 'self' {GOOGLE_MAPS_SRC} https://*.googleapis.com; "
+    "media-src 'self' blob:; worker-src 'self' blob:; frame-ancestors 'none'"
 )
 
 
@@ -76,6 +82,12 @@ async def security_and_rate_limit(request: Request, call_next):
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "ai_enabled": settings.ai_enabled, "model": settings.gemini_model if settings.ai_enabled else None}
+
+
+@app.get("/api/config")
+async def client_config():
+    """Browser-safe config. A Maps JS key is public by design and must be HTTP-referrer restricted."""
+    return {"google_maps_key": settings.google_maps_key}
 
 
 @app.get("/api/city")
@@ -113,19 +125,41 @@ async def places(
 
 
 def _report_view(r: Report) -> dict:
-    return {**r.model_dump(mode="json"), "age": freshness(r.created_at, utcnow())}
+    return {**r.model_dump(mode="json", exclude={"reporter_id"}), "age": freshness(r.created_at, utcnow())}
 
 
 @app.get("/api/reports")
 async def reports():
-    return [_report_view(r) for r in store.all()]
+    """Active (unresolved, last 72 h) reports. History is used for learning, not shown as live."""
+    return [_report_view(r) for r in store.active()]
+
+
+@app.post("/api/reports/{report_id}/vote")
+async def vote(report_id: str, req: VoteRequest):
+    try:
+        report = store.vote(report_id, req.voter_id, req.vote)
+    except KeyError:
+        raise HTTPException(404, "Report not found.") from None
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from None
+    return _report_view(report)
+
+
+@app.get("/api/insights/hotspots")
+async def hotspots(hour: int | None = Query(default=None, ge=0, le=23)):
+    """Learned recurring-issue cells, optionally for one time-of-day band."""
+    return {
+        "model": store.model.summary(),
+        "hotspots": [h.__dict__ for h in store.model.hotspots(hour)],
+        "notice": "Learned from community reports (including labelled demo history). Patterns, not predictions.",
+    }
 
 
 @app.get("/api/pulse")
 async def pulse():
     weather = await fetch_weather(CITY["center"])
     store.set_recent_rain(weather.get("recent_rain_mm"))
-    reps = store.all()
+    reps = store.active()
     now = utcnow()
     last_24h = [r for r in reps if (now - r.created_at).total_seconds() < 86400]
     by_cat: dict[str, int] = defaultdict(int)
@@ -157,6 +191,7 @@ async def create_report(
     lng: float = Form(...),
     photo: UploadFile | None = File(default=None),
     audio: UploadFile | None = File(default=None),
+    reporter_id: str | None = Form(default=None, pattern=VOTER_ID_PATTERN),
 ):
     if not Coord(lat=lat, lng=lng).in_city():
         raise HTTPException(422, "Location must be within Pune.")
@@ -188,6 +223,7 @@ async def create_report(
         has_audio=audio_blob is not None,
         ai_summary=analysis.summary if analysis else None,
         ai_consistency=analysis.media_consistency if analysis and (image_blob or audio_blob) else None,
+        reporter_id=reporter_id,
     )
     store.add(report)
     return {**_report_view(report), "ai_used": analysis is not None, "language": analysis.language if analysis else None}
@@ -210,10 +246,12 @@ async def routes(req: RouteRequest):
     origin, dest = (req.origin.lat, req.origin.lng), (req.destination.lat, req.destination.lng)
     raw, source = await fetch_routes(origin, dest)
     now = utcnow()
-    reps = store.all()
+    reps = store.active()
     scored: list[ScoredRoute] = []
     for i, r in enumerate(raw):
-        score, confidence, factors = score_route(r["geometry"], req.hour, reps, ACCIDENT_ZONES, SUPPORT_POINTS, now)
+        score, confidence, factors = score_route(
+            r["geometry"], req.hour, reps, ACCIDENT_ZONES, SUPPORT_POINTS, now, hotspots=store.model,
+        )
         scored.append(ScoredRoute(
             id=f"route-{i}", geometry=r["geometry"], distance_m=round(r["distance_m"]), duration_s=round(r["duration_s"]),
             safety_score=score, confidence=confidence, factors=factors,
@@ -266,26 +304,27 @@ async def compare_places(req: CompareRequest):
         raise HTTPException(404, f"Unknown place id(s): {', '.join(missing)}")
     if len(set(req.place_ids)) != len(req.place_ids):
         raise HTTPException(422, "Place ids must be unique.")
-    return compare([PLACES_BY_ID[pid] for pid in req.place_ids], req.weights, store.all())
+    return compare([PLACES_BY_ID[pid] for pid in req.place_ids], req.weights, store.active())
 
 
 @app.post("/api/assistant")
 async def assistant(req: AssistantRequest):
     loc = (req.location.lat, req.location.lng) if req.location and req.location.in_city() else CITY["center"]
-    reps = store.all()
+    reps = store.active()
     if settings.ai_enabled:
         brief = "; ".join(f"{r.category.value} near ({r.lat:.3f},{r.lng:.3f}) {r.trust_label}" for r in reps[:8])
         places_brief = "; ".join(
             f"{p.name} [{p.category.value}, {p.area}, {'₹' * p.price_level}, {', '.join(p.tags[:3])}]" for p in PLACES
         )
-        ai = await gemini.ask_assistant(req.query, loc, brief, places_brief)
+        history = " | ".join(f"{t.role}: {t.text[:300]}" for t in req.history[-6:])
+        ai = await gemini.ask_assistant(req.query, loc, brief, places_brief, history)
         if ai:
             if ai["engine"] == "gemini":
-                ai["sources"] = [{"title": "CityPulse Pune dataset (demo values)", "uri": ""}]
+                ai["sources"] = [{"title": "Pune dataset (demo values)", "uri": ""}]
             return {**ai, "place_ids": match_place_ids(ai["answer"], PLACES), "report_ids": [],
                     "answered_at": utcnow().isoformat()}
     fallback = rule_based_answer(req.query, PLACES, reps)
-    return {**fallback, "sources": [{"title": "CityPulse Pune demo dataset", "uri": ""}],
+    return {**fallback, "sources": [{"title": "Pune demo dataset", "uri": ""}],
             "engine": "rules", "answered_at": utcnow().isoformat()}
 
 

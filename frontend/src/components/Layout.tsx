@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { CheckCircle2, Compass, GitCompareArrows, Home, Info, Megaphone, ShieldAlert, XCircle } from 'lucide-react'
 import { useApp } from '../state/AppState'
+import { ChatWidget } from './ChatWidget'
 
 const LINKS = [
   { to: '/', label: 'Home', Icon: Home, end: true },
@@ -29,8 +30,9 @@ export function Layout() {
       <a className="skip-link" href="#main">Skip to content</a>
       <header className="nav">
         <div className="container">
-          <NavLink to="/" className="brand" aria-label="CityPulse AI home">
-            <BrandMark /> CityPulse
+          <NavLink to="/" className="brand" aria-label="पुण्यात काय? home" lang="mr">
+            <BrandMark />
+            <span><span className="marathi">पुण्यात काय?</span><small lang="en">Pune city intelligence</small></span>
           </NavLink>
           <nav className="nav-links" aria-label="Primary">
             {LINKS.map(({ to, label, Icon, end }) => (
@@ -70,8 +72,8 @@ export function Layout() {
       <footer className="footer">
         <div className="container">
           <div>
-            <strong>CityPulse AI</strong>
-            <p style={{ marginTop: 6, maxWidth: 420 }}>Feel the city. Read the signals. Move smarter. Built for Pune at PromptWars x BRAIN DYPCOEI.</p>
+            <strong className="marathi" lang="mr" style={{ fontSize: 24 }}>पुण्यात काय?</strong>
+            <p style={{ marginTop: 6, maxWidth: 420 }}>"What's happening in Pune?" Feel the city. Read the signals. Move smarter. Built for PromptWars x BRAIN DYPCOEI.</p>
           </div>
           <div style={{ maxWidth: 520 }}>
             Data: places are real, but ratings, prices and accessibility are illustrative demo values. Seed incidents are labelled demo records.
@@ -87,6 +89,8 @@ export function Layout() {
           </NavLink>
         ))}
       </nav>
+
+      <ChatWidget />
 
       <div className="toasts" role="status" aria-live="polite">
         <AnimatePresence>

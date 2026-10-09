@@ -7,6 +7,7 @@ import { useApp } from '../state/AppState'
 import type { Report, ReportCategory } from '../types'
 import { CityMap } from '../components/CityMap'
 import { TrustBadge } from '../components/TrustBadge'
+import { deviceId } from '../identity'
 
 const CATEGORIES: { id: ReportCategory; label: string }[] = [
   { id: 'waterlogging', label: 'Waterlogging' },
@@ -99,6 +100,7 @@ export function ReportPage() {
     form.append('description', description.trim())
     form.append('lat', String(point[0]))
     form.append('lng', String(point[1]))
+    form.append('reporter_id', deviceId())
     if (photo) form.append('photo', photo)
     if (audio) form.append('audio', new File([audio], 'voice-note.webm', { type: audio.type }))
     try {
@@ -178,7 +180,7 @@ export function ReportPage() {
                     </>
                   )}
                 </div>
-                <div className="notice"><Lock size={14} aria-hidden /> We store only the category, text, pin and whether media was attached. Photos and audio are analysed once and not kept. No account, no name.</div>
+                <div className="notice"><Lock size={14} aria-hidden /> We store only the category, text, pin, whether media was attached, and an anonymous device id (so your accuracy can earn trust). Photos and audio are analysed once and not kept. No account, no name.</div>
                 <button className="btn primary" type="submit">Review report</button>
               </form>
             )}

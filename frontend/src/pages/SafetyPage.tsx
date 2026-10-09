@@ -1,13 +1,15 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { AlertTriangle, Clock, Loader2, Moon, Navigation, Sparkles, Sun } from 'lucide-react'
+import { AlertTriangle, BrainCircuit, Clock, ExternalLink, Loader2, Moon, Navigation, Sparkles, Sun } from 'lucide-react'
 import { api } from '../api'
 import { useApp } from '../state/AppState'
-import type { ReportCategory, RouteResponse } from '../types'
+import type { HotspotResponse, ReportCategory, RouteResponse } from '../types'
 import { CityMap } from '../components/CityMap'
 import { TrustBadge } from '../components/TrustBadge'
 import { Counter } from '../components/Counter'
 import { formatKm, formatMinutes } from '../geo'
+import { VoteBar } from '../components/VoteBar'
+import { directionsUrl } from '../gmaps'
 
 const FILTERS: { id: ReportCategory | 'all'; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -31,6 +33,15 @@ export function SafetyPage() {
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<ReportCategory | 'all'>('all')
   const [verifiedOnly, setVerifiedOnly] = useState(false)
+  const [learned, setLearned] = useState<HotspotResponse | null>(null)
+  const [showHotspots, setShowHotspots] = useState(true)
+
+  // Learned patterns for the chosen travel hour (re-fetched when the hour or reports change).
+  useEffect(() => {
+    const t = setTimeout(() => { api.hotspots(hour).then(setLearned).catch(() => setLearned(null)) }, 150)
+    return () => clearTimeout(t)
+  }, [hour, reports])
+
   const [picked, setPicked] = useState<{ id: string; at: [number, number] } | null>(null)
   // A report linked from elsewhere (?report=id) is focused until the user picks another.
   const linked = reports.find((x) => x.id === params.get('report'))
@@ -145,16 +156,52 @@ export function SafetyPage() {
                             <span>{f.impact > 0 ? `+${f.impact}` : f.impact < 0 ? f.impact : ''}</span>
                           </div>
                         ))}
+                        <a
+                          className="btn sm primary"
+                          style={{ marginTop: 10 }}
+                          href={directionsUrl(r.geometry)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <ExternalLink size={14} aria-hidden /> Navigate this route in Google Maps
+                        </a>
                       </div>
                     )}
                   </button>
                 ))}
                 <p className="tiny muted">
                   Routing: {result.routing_source === 'osrm' ? 'OSRM public demo (driving)' : 'straight-line fallback'}. A higher score means fewer known risks, never "safe".
+                  Google Maps navigation follows this route via waypoints.
                 </p>
               </div>
             )}
           </div>
+
+          {learned && (
+            <div className="panel panel-pad filters" aria-live="polite">
+              <div className="row between">
+                <span className="eyebrow lav"><BrainCircuit size={14} aria-hidden /> Self-learning model</span>
+                <label className="tiny row" style={{ gap: 6, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={showHotspots} onChange={(e) => setShowHotspots(e.target.checked)} /> Show on map
+                </label>
+              </div>
+              <div className="row" style={{ gap: 20 }}>
+                <div><div className="score-big" style={{ fontSize: 30 }}><Counter value={learned.model.samples} /></div><span className="tiny muted">reports learned from</span></div>
+                <div><div className="score-big" style={{ fontSize: 30 }}><Counter value={learned.hotspots.length} /></div><span className="tiny muted">hotspots at {String(hour).padStart(2, '0')}:00</span></div>
+              </div>
+              {learned.hotspots.slice(0, 3).map((h) => (
+                <div key={`${h.lat}${h.lng}`} className="factor risk">
+                  <span>Recurring {h.top_category} · {h.reports} reports</span><span>w {h.weight}</span>
+                </div>
+              ))}
+              {!learned.hotspots.length && <p className="tiny muted">No recurring pattern learned for this time of day.</p>}
+              <p className="tiny muted">
+                Retrained {learned.model.trained_at ? new Date(learned.model.trained_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'n/a'} on
+                every report and vote · {learned.model.half_life_days}-day memory · community votes and reporter accuracy adjust trust. Includes labelled demo history.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="map-col">
@@ -163,6 +210,7 @@ export function SafetyPage() {
             selectedRouteId={selected}
             onRouteSelect={setSelected}
             reports={visibleReports}
+            hotspots={showHotspots ? learned?.hotspots ?? [] : []}
             showZones
             focus={focus}
             fitTo={focus ? null : fit}
@@ -173,6 +221,7 @@ export function SafetyPage() {
             <span><i style={{ background: '#111' }} /> Selected route</span>
             <span><i style={{ background: '#f59e0b' }} /> Community report</span>
             <span><i style={{ background: 'var(--red)' }} /> Severe / accident corridor</span>
+            <span><i style={{ background: 'rgba(210,58,58,.25)', border: '1px solid #D23A3A' }} /> Learned hotspot (this hour)</span>
           </div>
         </div>
       </div>
@@ -198,10 +247,14 @@ export function SafetyPage() {
         </div>
         <div className="report-list">
           {visibleReports.map((r) => (
-            <button
+            <div
               key={r.id}
+              role="button"
+              tabIndex={0}
+              aria-pressed={activeReport === r.id}
               className={`report-row${activeReport === r.id ? ' active' : ''}`}
               onClick={() => { setPicked({ id: r.id, at: [r.lat, r.lng] }); window.scrollTo({ top: 200, behavior: 'smooth' }) }}
+              onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setPicked({ id: r.id, at: [r.lat, r.lng] }) } }}
             >
               <span className={`sev${r.severity >= 3 ? ' s3' : ''}${r.source === 'official' ? ' official' : ''}`} aria-hidden />
               <span>
@@ -212,9 +265,10 @@ export function SafetyPage() {
                   Trust {r.trust_score}/100 · {r.source}{r.has_photo ? ' · photo' : ''}{r.has_audio ? ' · voice' : ''}{r.demo ? ' · demo record' : ''}
                   {activeReport === r.id && <> · {r.trust_reasons.join(' · ')}</>}
                 </span>
+                {activeReport === r.id && <VoteBar report={r} />}
               </span>
               <TrustBadge label={r.trust_label} />
-            </button>
+            </div>
           ))}
           {!visibleReports.length && <div className="empty">Insufficient data: no reports match these filters.</div>}
         </div>

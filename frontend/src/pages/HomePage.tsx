@@ -12,6 +12,7 @@ import { CityMap } from '../components/CityMap'
 import { CityPulse } from '../components/CityPulse'
 import { PlacePhoto } from '../components/PlacePhoto'
 import { TrustBadge } from '../components/TrustBadge'
+import { placeUrl, streetViewUrl } from '../gmaps'
 
 const EXAMPLES = [
   'Best street food under ₹200 near FC Road',
@@ -172,7 +173,7 @@ export function HomePage() {
             <motion.div className="search-box" variants={reveal} initial="hidden" animate="show" custom={1}>
               <form onSubmit={onSubmit} role="search">
                 <Search size={18} aria-hidden />
-                <label htmlFor="ask" className="sr-only">Ask CityPulse</label>
+                <label htmlFor="ask" className="sr-only">Ask पुण्यात काय?</label>
                 <input
                   id="ask"
                   value={query}
@@ -181,7 +182,7 @@ export function HomePage() {
                   maxLength={500}
                   autoComplete="off"
                 />
-                <button className="btn primary icon" type="submit" disabled={asking} aria-label="Ask CityPulse">
+                <button className="btn primary icon" type="submit" disabled={asking} aria-label="Ask">
                   {asking ? <Loader2 size={18} aria-hidden /> : <SlidersHorizontal size={18} aria-hidden />}
                 </button>
               </form>
@@ -194,9 +195,9 @@ export function HomePage() {
                 {answer && !asking && (
                   <div className="answer">
                     <div className="row between">
-                      <span className="eyebrow lav"><Sparkles size={13} aria-hidden /> CityPulse answer</span>
+                      <span className="eyebrow lav"><Sparkles size={13} aria-hidden /> पुण्यात काय? answer</span>
                       <span className={`badge ${answer.engine === 'rules' ? 'demo' : 'ai'}`}>
-                        {answer.engine === 'rules' ? 'Rule-based (AI unavailable)' : answer.engine === 'gemini' ? 'Gemini · CityPulse dataset' : 'Gemini · grounded in Google Maps'}
+                        {answer.engine === 'rules' ? 'Rule-based (AI unavailable)' : answer.engine === 'gemini' ? 'Gemini · Pune dataset' : 'Gemini · grounded in Google Maps'}
                       </span>
                     </div>
                     <pre>{answer.answer.replace(/\*\*(.+?)\*\*/g, '$1').replace(/^\s*[*-]\s+/gm, '• ')}</pre>
@@ -228,7 +229,8 @@ export function HomePage() {
                   </div>
                   <div className="row" style={{ gap: 8 }}>
                     <Link className="btn sm primary" to="/safety">Plan a route</Link>
-                    <Link className="btn sm" to="/compare">Compare</Link>
+                    <a className="btn sm" href={placeUrl(featured.name, featured.lat, featured.lng)} target="_blank" rel="noopener noreferrer">Google Maps ↗</a>
+                    <a className="btn sm ghost" href={streetViewUrl(featured.lat, featured.lng)} target="_blank" rel="noopener noreferrer">Street View</a>
                   </div>
                 </div>
               </motion.article>

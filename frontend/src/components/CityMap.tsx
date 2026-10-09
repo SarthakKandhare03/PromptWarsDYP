@@ -1,10 +1,12 @@
 import { useEffect, useMemo } from 'react'
 import L from 'leaflet'
-import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
+import { Circle, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
-import type { Place, PlaceCategory, Report, ScoredRoute } from '../types'
+import type { Hotspot, Place, PlaceCategory, Report, ScoredRoute } from '../types'
 import { useApp } from '../state/AppState'
 import { TrustBadge } from './TrustBadge'
+import { GoogleCityMap } from './GoogleCityMap'
+import { streetViewUrl } from '../gmaps'
 
 const SVG = (d: string) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`
@@ -52,6 +54,7 @@ export interface CityMapProps {
   fitTo?: [number, number][] | null
   label?: string
   onPlaceSelect?: (p: Place) => void
+  hotspots?: Hotspot[]
 }
 
 function ClickPicker({ onPick }: { onPick: (latlng: [number, number]) => void }) {
@@ -68,8 +71,25 @@ function Focus({ focus, fitTo }: { focus?: [number, number] | null; fitTo?: [num
   return null
 }
 
-export function CityMap({
-  places = [], reports = [], routes = [], selectedRouteId, onRouteSelect, showZones = false,
+/** Map switcher: Google Maps JS when a Maps key is configured, otherwise OpenStreetMap/Leaflet. */
+export function CityMap(props: CityMapProps) {
+  const { mapsKey, mapEngine, setMapEngine } = useApp()
+  const google = Boolean(mapsKey) && mapEngine === 'google'
+  return (
+    <>
+      {google ? <GoogleCityMap {...props} /> : <LeafletCityMap {...props} />}
+      {mapsKey && (
+        <div className="seg engine-toggle" role="group" aria-label="Map engine">
+          <button aria-pressed={google} onClick={() => setMapEngine('google')}>Google</button>
+          <button aria-pressed={!google} onClick={() => setMapEngine('osm')}>OSM</button>
+        </div>
+      )}
+    </>
+  )
+}
+
+function LeafletCityMap({
+  places = [], reports = [], routes = [], selectedRouteId, onRouteSelect, showZones = false, hotspots = [],
   picked, onPick, focus, fitTo, label = 'Interactive map of Pune', onPlaceSelect,
 }: CityMapProps) {
   const { city, highlight } = useApp()
@@ -106,6 +126,17 @@ export function CityMap({
             />
           )
         })}
+
+        {hotspots.map((h) => (
+          <Circle
+            key={`${h.lat}-${h.lng}-${h.band}`}
+            center={[h.lat, h.lng]}
+            radius={220 + h.weight * 60}
+            pathOptions={{ color: '#D23A3A', weight: 1, opacity: 0.5, fillColor: '#D23A3A', fillOpacity: 0.12 }}
+          >
+            <Tooltip>{`Learned hotspot · recurring ${h.top_category} in the ${h.band} · ${h.reports} past reports`}</Tooltip>
+          </Circle>
+        ))}
 
         {showZones && city?.accident_zones.map((z) => (
           <Marker key={z.name} position={[z.lat, z.lng]} icon={zoneIcon} keyboard={false}>
@@ -150,6 +181,7 @@ export function CityMap({
               <ul style={{ margin: '8px 0 0', paddingLeft: 16 }} className="tiny muted">
                 {r.trust_reasons.map((t) => <li key={t}>{t}</li>)}
               </ul>
+              <a className="tiny" href={streetViewUrl(r.lat, r.lng)} target="_blank" rel="noopener noreferrer">Check in Street View ↗</a>
             </Popup>
           </Marker>
         ))}

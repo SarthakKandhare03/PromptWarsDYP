@@ -1,4 +1,5 @@
-import { Bookmark, BookmarkCheck, MapPin, Star } from 'lucide-react'
+import { Bookmark, BookmarkCheck, ExternalLink, MapPin, Star } from 'lucide-react'
+import { placeUrl, streetViewUrl } from '../gmaps'
 import type { Place } from '../types'
 import { useApp } from '../state/AppState'
 import { PlacePhoto } from './PlacePhoto'
@@ -33,13 +34,17 @@ export function PlaceCard({ place, onFocus }: { place: Place; onFocus?: (p: Plac
         <span className="pill">{place.wheelchair === true ? 'Wheelchair access' : place.wheelchair === false ? 'Steps / no ramp' : 'Access unknown'}</span>
         <span>{place.area} · demo values</span>
       </div>
-      {onFocus && (
-        <div className="place-actions">
+      <div className="place-actions" style={{ flexWrap: 'wrap' }}>
+        {onFocus && (
           <button className="btn sm" onClick={() => onFocus(place)}>
             <MapPin size={14} aria-hidden /> Show on map
           </button>
-        </div>
-      )}
+        )}
+        <a className="btn sm" href={placeUrl(place.name, place.lat, place.lng)} target="_blank" rel="noopener noreferrer">
+          <ExternalLink size={13} aria-hidden /> Google Maps
+        </a>
+        <a className="btn sm ghost" href={streetViewUrl(place.lat, place.lng)} target="_blank" rel="noopener noreferrer">Street View</a>
+      </div>
     </article>
   )
 }

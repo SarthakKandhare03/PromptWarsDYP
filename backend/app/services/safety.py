@@ -16,6 +16,7 @@ from collections.abc import Sequence
 from datetime import datetime
 
 from app.models import Report, RouteFactor
+from app.services.learning import HOTSPOT_MIN_REPORTS, HotspotModel, band_for, cell_for
 from app.services.geo import LatLng, haversine_m, sample_path
 
 ZONE_RADIUS_M = 400.0
@@ -43,6 +44,7 @@ def score_route(
     zones: Sequence[tuple[str, float, float]],
     support: Sequence[tuple[str, str, float, float]],
     now: datetime,
+    hotspots: HotspotModel | None = None,
 ) -> tuple[int | None, str, list[RouteFactor]]:
     """Return (score 0-100 or None, confidence, factors)."""
     samples = sample_path(path)
@@ -76,6 +78,23 @@ def score_route(
             label=f"{rep.category.value.title()} reported nearby ({rep.trust_label.lower()})",
             impact=-round(impact, 1), kind="risk",
         ))
+
+    # Learned patterns: cells where issues recur at this time of day (from report history).
+    if hotspots is not None:
+        seen = set()
+        for s in samples:
+            cell = cell_for(*s)
+            if cell in seen:
+                continue
+            seen.add(cell)
+            w, n, top = hotspots.risk(s[0], s[1], hour)
+            if w >= 0.6 and n >= HOTSPOT_MIN_REPORTS and top:
+                impact = min(10.0, 3.5 * w) * mult
+                risk += impact
+                factors.append(RouteFactor(
+                    label=f"Learned pattern: recurring {top} here in the {band_for(hour)} ({n} past reports)",
+                    impact=-round(impact, 1), kind="risk",
+                ))
 
     # Support: share of the route within reach of police or hospital.
     covered = sum(

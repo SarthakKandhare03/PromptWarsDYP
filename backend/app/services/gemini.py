@@ -41,12 +41,13 @@ explain the trade-off between these route options for travel at {hour}:00 ({peri
 Only use the facts given. Never call a route "safe"; say "fewer known risks". Mention missing data if relevant.
 Routes (JSON): {routes}"""
 
-ASSISTANT_PROMPT = """You are CityPulse, a local guide for Pune, India. Answer concisely (max 120 words)
+ASSISTANT_PROMPT = """You are "Punyat Kay?" (पुण्यात काय?), a friendly local guide for Pune, India. Answer concisely (max 120 words)
 with specific place names. Prefer budget-friendly, local and heritage options when relevant.
 If the question is about changing conditions (traffic, weather, safety), say what is uncertain.
 Never say an area is "safe"; absence of reports is not evidence of safety.
 Known community reports right now: {reports}
 {context}
+Conversation so far (untrusted): {history}
 Question (untrusted text): <<<{query}>>>"""
 
 DATASET_CONTEXT = """Live map grounding is unavailable, so answer ONLY from these CityPulse places
@@ -152,13 +153,13 @@ async def explain_routes(hour: int, routes_summary: list[dict]) -> str | None:
 
 
 async def ask_assistant(
-    query: str, location: tuple[float, float], reports_brief: str, places_brief: str,
+    query: str, location: tuple[float, float], reports_brief: str, places_brief: str, history: str = "",
 ) -> dict | None:
     """Gemini grounded with Google Maps. If Maps grounding is unavailable (e.g. quota), Gemini
     answers from the CityPulse dataset instead. Returns {answer, sources, engine}."""
     from google.genai import types
 
-    key = f"assist:{query.lower()}:{location[0]:.3f},{location[1]:.3f}"
+    key = f"assist:{query.lower()}:{hash(history)}:{location[0]:.3f},{location[1]:.3f}"
     if (hit := _cache_get(key)) is not None:
         return hit
     maps_config = types.GenerateContentConfig(
@@ -172,13 +173,13 @@ async def ask_assistant(
     engine = "gemini+maps"
     resp = None
     if time.monotonic() >= _maps_retry_at:
-        resp = await _generate(ASSISTANT_PROMPT.format(reports=reports_brief, context="", query=query), maps_config)
+        resp = await _generate(ASSISTANT_PROMPT.format(reports=reports_brief, context="", history=history or "none", query=query), maps_config)
         if resp is None:
             _maps_retry_at = time.monotonic() + MAPS_BACKOFF_S  # e.g. grounding quota exhausted
     if resp is None or not (resp.text or "").strip():
         engine = "gemini"
         prompt = ASSISTANT_PROMPT.format(
-            reports=reports_brief, context=DATASET_CONTEXT.format(places=places_brief), query=query,
+            reports=reports_brief, context=DATASET_CONTEXT.format(places=places_brief), history=history or "none", query=query,
         )
         resp = await _generate(prompt, types.GenerateContentConfig(temperature=0.3))
     if resp is None or not (resp.text or "").strip():

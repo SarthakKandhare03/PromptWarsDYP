@@ -1,4 +1,4 @@
-# CityPulse AI
+# पुण्यात काय? (Punyat Kay? — "What's happening in Pune?")
 
 **Feel the city. Read the signals. Move smarter.**
 
@@ -30,6 +30,21 @@ Most city apps show you places. CityPulse tells you **which information to trust
 3. **Best vs Worst**: weighted comparison of 2–4 places across five dimensions.
 4. **Smart City Insights**: report by **text, photo or voice note** (English/Marathi/Hindi). Gemini returns structured JSON (category, severity, summary, media consistency, language), and the report appears on the map instantly, re-scoring nearby reports.
 5. **AI City Assistant**: natural-language search on the home page. **Gemini grounded with Google Maps** answers with cited sources, and mentioned places get highlighted on the map. There is a clearly labelled rule-based fallback.
+
+## Self-learning layer ("trained by the city")
+The app gets smarter with every report and vote. Nothing is a black box.
+- **Community verification**: anyone nearby can mark a report *Still there*, *Not there* or *Resolved* (one vote per device; you cannot vote on your own report). Confirmations raise trust (+10 each), disputes lower it (−15 each), and two "resolved" votes close a report.
+- **Reporter reputation**: a Beta(1,1) prior updated by how the community judged each anonymous reporter's past reports. Accurate reporters earn up to +10 trust on new reports, unreliable ones lose it. Reputation uses votes, not trust, so there is no feedback loop.
+- **Hotspot model**: learns *where and when* problems recur. Reports go into ~550 m cells × 5 time-of-day bands, weighted by trust × severity × a 14-day half-life (old patterns fade). Disputed reports are ignored, and one report is never a "pattern". It retrains on every report and vote, feeds **safe-route scoring** ("Learned pattern: recurring waterlogging here in the evening"), and is exposed at `GET /api/insights/hotspots`.
+- **Persistence**: SQLite keeps reports, votes and reputation across restarts.
+
+## Google Maps integration
+- **Navigate in Google Maps**: hands the *chosen safer route* to Google Maps with waypoints sampled from our geometry, so turn-by-turn follows our path, not Google's fastest.
+- **Open in Google Maps / Street View** on every place, and Street View on every report so people can see a spot before going.
+- **Google Maps JavaScript map**: set `GOOGLE_MAPS_API_KEY` (referrer-restricted) and the app switches to Google Maps automatically, with an OSM/Google toggle. Without a key it uses OpenStreetMap.
+
+## Chat assistant
+A floating **काय?** assistant (bottom-right) with multi-turn memory: recent turns go to Gemini as context. Places it mentions become chips that highlight them on the map.
 
 ## Architecture
 
@@ -69,7 +84,7 @@ Single container → Google Cloud Run
   - one Gemini call per request, with an LRU cache and a hard timeout
   - weather cached for 10 min
   - GZip, lazy-loaded routes, cached marker icons, no image assets
-- **Testing**: **41 pytest tests** covering:
+- **Testing**: **57 pytest tests** covering:
   - geo maths
   - trust scoring (corroboration, weather and corridor cross-checks, caps)
   - night weighting and "insufficient data" in route safety
@@ -109,7 +124,7 @@ python deploy/aws/package.py          # -> dist/citypulse-eb.zip (FastAPI app + 
 ```
 
 In the Elastic Beanstalk console, create an environment with the **Python** platform, upload `dist/citypulse-eb.zip`,
-and set the environment properties `GEMINI_API_KEY` and `GEMINI_MODEL=gemini-3.5-flash`.
+and set the environment properties `GEMINI_API_KEY`, `GEMINI_MODEL=gemini-3.5-flash` and, optionally, `GOOGLE_MAPS_API_KEY`.
 EB's nginx proxies port 80 to uvicorn on 8000, and `--proxy-headers` keeps per-client rate limiting accurate.
 
 The same app also runs as a container (`Dockerfile`) on any container host, such as Cloud Run, App Runner or ECS.

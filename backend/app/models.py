@@ -80,6 +80,19 @@ class Report(BaseModel):
     trust_label: str = "Unverified"
     trust_reasons: list[str] = []
     demo: bool = False
+    reporter_id: str | None = None  # anonymous device id, never returned by the API
+    status: Literal["active", "resolved"] = "active"
+    confirmations: int = 0
+    disputes: int = 0
+    resolved_votes: int = 0
+
+
+VOTER_ID_PATTERN = r"^[A-Za-z0-9-]{8,64}$"
+
+
+class VoteRequest(BaseModel):
+    vote: Literal["confirm", "dispute", "resolved"]
+    voter_id: str = Field(pattern=VOTER_ID_PATTERN)
 
 
 class RouteRequest(BaseModel):
@@ -135,9 +148,15 @@ class CompareRequest(BaseModel):
     weights: CompareWeights = CompareWeights()
 
 
+class ChatTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    text: str = Field(max_length=2000)
+
+
 class AssistantRequest(BaseModel):
     query: str = Field(min_length=2, max_length=500)
     location: Coord | None = None
+    history: list[ChatTurn] = Field(default_factory=list, max_length=8)
 
     @field_validator("query")
     @classmethod

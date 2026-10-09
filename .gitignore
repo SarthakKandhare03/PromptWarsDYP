@@ -34,3 +34,5 @@ npm-debug.log*
 # Python
 .venv/
 .pytest_cache/
+
+.data/

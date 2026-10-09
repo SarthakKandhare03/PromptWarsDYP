@@ -41,6 +41,7 @@ class Settings:
     max_upload_bytes: int
     static_dir: Path
     allowed_origins: tuple[str, ...]
+    google_maps_key: str | None
 
     @property
     def ai_enabled(self) -> bool:
@@ -63,6 +64,7 @@ def get_settings() -> Settings:
         max_upload_bytes=int(os.getenv("MAX_UPLOAD_BYTES", str(5 * 1024 * 1024))),
         static_dir=Path(os.getenv("STATIC_DIR") or _default_static_dir()),
         allowed_origins=tuple(o.strip() for o in origins.split(",") if o.strip()),
+        google_maps_key=os.getenv("GOOGLE_MAPS_API_KEY") or None,
     )
 
 

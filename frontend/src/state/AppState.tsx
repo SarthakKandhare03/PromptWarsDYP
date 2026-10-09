@@ -24,6 +24,10 @@ interface AppState {
   refresh: () => Promise<void>
   toasts: Toast[]
   notify: (message: string, tone?: Toast['tone']) => void
+  replaceReport: (r: Report) => void
+  mapsKey: string | null
+  mapEngine: 'osm' | 'google'
+  setMapEngine: (e: 'osm' | 'google') => void
 }
 
 const Ctx = createContext<AppState | null>(null)
@@ -49,6 +53,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [saved, setSaved] = useState<string[]>(readSaved)
   const [highlight, setHighlight] = useState<string[]>([])
   const [toasts, setToasts] = useState<Toast[]>([])
+  const [mapsKey, setMapsKey] = useState<string | null>(null)
+  const [mapEngine, setMapEngine] = useState<'osm' | 'google'>('osm')
 
   const notify = useCallback((message: string, tone: Toast['tone'] = 'info') => {
     const id = Date.now() + Math.random()
@@ -65,8 +71,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setAiEnabled(h.ai_enabled)
       setError(null)
       api.pulse().then(setPulse).catch(() => setPulse(null))
+      api.config().then((c) => {
+        setMapsKey(c.google_maps_key)
+        if (c.google_maps_key) setMapEngine('google')
+      }).catch(() => undefined)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not reach the CityPulse API')
+      setError(e instanceof Error ? e.message : 'Could not reach the API')
     } finally {
       setLoading(false)
     }
@@ -93,12 +103,19 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     api.pulse().then(setPulse).catch(() => undefined)
   }, [])
 
+  const replaceReport = useCallback((r: Report) => {
+    // Votes re-score neighbours and retrain the model, so refresh the live set.
+    setReports((prev) => prev.map((x) => (x.id === r.id ? r : x)).filter((x) => x.status === 'active'))
+    api.reports().then(setReports).catch(() => undefined)
+  }, [])
+
   const value = useMemo(
     () => ({
       city, places, reports, pulse, aiEnabled, loading, error, saved, toggleSaved,
-      highlight, setHighlight, addReport, refresh, toasts, notify,
+      highlight, setHighlight, addReport, refresh, toasts, notify, replaceReport, mapsKey, mapEngine, setMapEngine,
     }),
-    [city, places, reports, pulse, aiEnabled, loading, error, saved, toggleSaved, highlight, addReport, refresh, toasts, notify],
+    [city, places, reports, pulse, aiEnabled, loading, error, saved, toggleSaved, highlight, addReport, refresh, toasts, notify,
+      replaceReport, mapsKey, mapEngine],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

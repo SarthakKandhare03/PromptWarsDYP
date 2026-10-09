@@ -32,6 +32,7 @@ class TrustContext:
 
     recent_rain_mm: float | None = None
     accident_zones: tuple[tuple[str, float, float], ...] = ()
+    reputation: dict[str, tuple[float, int]] | None = None  # reporter_id -> (0-1, judged reports)
 
 
 def label_for(score: int, source: SourceType) -> str:
@@ -89,6 +90,24 @@ def score_report(report: Report, others: Iterable[Report], ctx: TrustContext) ->
                 score += 10
                 reasons.append(f"Inside a publicly reported accident-prone corridor: {name} (+10)")
                 break
+
+    # Community verification (CommuniSense-style): people on the ground confirm or dispute.
+    if report.confirmations:
+        bonus = min(30, 10 * report.confirmations)
+        score += bonus
+        reasons.append(f"{report.confirmations} person(s) confirmed it is still there (+{bonus})")
+    if report.disputes:
+        penalty = min(45, 15 * report.disputes)
+        score -= penalty
+        reasons.append(f"{report.disputes} person(s) disputed it (-{penalty})")
+
+    # Learned reporter reputation: accurate reporters earn more trust next time.
+    if ctx.reputation and report.reporter_id in ctx.reputation:
+        rep, judged = ctx.reputation[report.reporter_id]
+        adj = round((rep - 0.5) * 20)
+        if adj:
+            score += adj
+            reasons.append(f"Reporter's track record: {round(rep * 100)}% accurate over {judged} judged report(s) ({adj:+d})")
 
     return max(0, min(100, round(score))), reasons
 

@@ -175,3 +175,37 @@ def seed_reports(now: datetime | None = None) -> list[Report]:
         r("demo-8", ReportCategory.pothole, "Road resurfacing scheduled (demo official notice).", 18.5130, 73.8540, 48, 1,
           source=SourceType.official),
     ]
+
+
+# Recurring patterns for the hotspot model to learn: (place, lat, lng, category, IST hours, reports in 30 days).
+# Synthetic and labelled demo, shaped after publicly reported Pune trouble spots.
+_HISTORY_PATTERNS = [
+    ("Swargate flyover", 18.5012, 73.8638, ReportCategory.waterlogging, (17, 18, 19, 20), 9),
+    ("Katraj Chowk", 18.4576, 73.8587, ReportCategory.traffic, (8, 9, 18, 19), 8),
+    ("Navale Bridge", 18.4561, 73.8188, ReportCategory.accident, (22, 23, 0, 1), 7),
+    ("University Rd", 18.5300, 73.8440, ReportCategory.streetlight, (20, 21, 22), 6),
+    ("Shaniwar Peth lanes", 18.5190, 73.8562, ReportCategory.accessibility, (10, 11, 16), 5),
+    ("Hadapsar, Solapur Rd", 18.5016, 73.9255, ReportCategory.pothole, (7, 8, 9, 18), 6),
+]
+
+
+def seed_history(now: datetime | None = None) -> list[Report]:
+    """~40 deterministic historical demo reports spread over the last 30 days (all resolved)."""
+    import random
+
+    now = now or datetime.now(timezone.utc)
+    rng = random.Random(42)
+    out: list[Report] = []
+    ist = timezone(timedelta(hours=5, minutes=30))
+    for name, lat, lng, cat, hours, n in _HISTORY_PATTERNS:
+        for i in range(n):
+            day = now.astimezone(ist) - timedelta(days=rng.randint(2, 30))
+            when = day.replace(hour=rng.choice(hours), minute=rng.randint(0, 59), second=0, microsecond=0)
+            out.append(Report(
+                id=f"hist-{len(out) + 1}", category=cat, description=f"Recurring {cat.value} at {name} (historical demo).",
+                lat=lat + rng.uniform(-0.0012, 0.0012), lng=lng + rng.uniform(-0.0012, 0.0012),
+                created_at=when.astimezone(timezone.utc), severity=rng.choice((1, 2, 2, 3)),
+                has_photo=rng.random() < 0.5, confirmations=rng.randint(0, 3), disputes=int(rng.random() < 0.1),
+                status="resolved", demo=True,
+            ))
+    return out
