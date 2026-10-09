@@ -344,6 +344,9 @@ const D: Record<string, [string, string, string]> = {
   'utsav.panel': ['Manache Ganpati walk · about {km} km on foot · locations approximate', 'मानाचे गणपति पैदल यात्रा · लगभग {km} किमी · स्थान अनुमानित', 'मानाचे गणपती पायी फेरी · सुमारे {km} किमी · ठिकाणे अंदाजे'],
   'nap.d': ['Classic Puneri afternoon break: many old-city shops close between 1 and 4 PM. Plan food and shopping around it.', 'पुणे का मशहूर दोपहर का विराम: पुराने शहर की कई दुकानें 1 से 4 बजे तक बंद रहती हैं। उसी हिसाब से योजना बनाएं।', 'पुणेरी दुपारची विश्रांती: जुन्या शहरातील अनेक दुकाने १ ते ४ बंद असतात. खाणं-खरेदी त्यानुसार आखा.'],
 
+  'sound.on': ['Welcome sound: on (tap to replay)', 'स्वागत ध्वनि: चालू (फिर सुनने के लिए टैप करें)', 'स्वागत आवाज: सुरू (पुन्हा ऐकण्यासाठी टॅप करा)'],
+  'sound.off': ['Welcome sound: off', 'स्वागत ध्वनि: बंद', 'स्वागत आवाज: बंद'],
+
   // ---------- chat ----------
   'chat.greeting': ['Namaskar! Ask me about places, food, heritage, or what people are reporting around Pune right now.', 'नमस्ते! जगहों, खाने, विरासत या पुणे में अभी लोग क्या बता रहे हैं, कुछ भी पूछिए।', 'नमस्कार! ठिकाणे, खाद्य, वारसा किंवा पुण्यात आत्ता लोक काय कळवत आहेत, काहीही विचारा.'],
   'chat.sub': ['Gemini city assistant', 'Gemini शहर सहायक', 'Gemini शहर सहाय्यक'],

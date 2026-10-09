@@ -4,6 +4,7 @@ import { CheckCircle2, Compass, Flower2, GitCompareArrows, Info, LayoutGrid, Meg
 import { useApp } from '../state/AppState'
 import { LANGS, useI18n } from '../i18n'
 import { ChatWidget } from './ChatWidget'
+import { WelcomeSound } from './WelcomeSound'
 
 const LINKS = [
   { to: '/city', key: 'nav.city', Icon: LayoutGrid },
@@ -53,6 +54,7 @@ export function Layout() {
                   <button key={l.id} lang={l.id} aria-pressed={lang === l.id} title={l.name} onClick={() => setLang(l.id)}>{l.short}</button>
                 ))}
               </div>
+              <WelcomeSound />
               <button className={`icon-btn${utsav ? ' utsav-on' : ''}`} onClick={toggleUtsav} aria-pressed={utsav} aria-label={t(utsav ? 'utsav.on' : 'utsav.off')} title={t(utsav ? 'utsav.on' : 'utsav.off')}>
                 <Flower2 size={16} aria-hidden />
               </button>
