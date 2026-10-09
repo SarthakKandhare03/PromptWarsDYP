@@ -33,7 +33,9 @@ def main() -> int:
         add_tree(zf, ROOT / "backend" / "app", "app")
         add_tree(zf, dist, "static")
         zf.write(ROOT / "backend" / "requirements.txt", "requirements.txt")
-        zf.write(ROOT / "deploy" / "aws" / "Procfile", "Procfile")
+        # Normalise line endings: a CRLF Procfile breaks the command on EB's Linux hosts.
+        procfile = (ROOT / "deploy" / "aws" / "Procfile").read_text(encoding="utf-8").replace(chr(13), "")
+        zf.writestr("Procfile", procfile)
     print(f"Wrote {OUT} ({OUT.stat().st_size // 1024} KB)")
     return 0
 

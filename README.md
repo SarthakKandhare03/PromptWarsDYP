@@ -51,7 +51,7 @@ Single container → Google Cloud Run
   - **multimodal** report analysis (image + audio + text) with **structured JSON output**
   - **Grounding with Google Maps** for the assistant, with `lat_lng` retrieval context and cited Maps sources
   - natural-language route trade-off explanations
-- **Google Cloud Run**: containerised deployment (`Dockerfile`)
+- Containerised via `Dockerfile` (Cloud Run-ready); live demo hosted on AWS Elastic Beanstalk
 - **Google Fonts**: Space Grotesk + Inter
 
 ## Evaluation checklist
@@ -101,12 +101,18 @@ cd frontend && npm install && npm run dev        # http://localhost:5173
 cd backend && python -m pytest -q
 ```
 
-## Deploy to Cloud Run
+## Deploy (AWS Elastic Beanstalk)
 
 ```bash
-gcloud run deploy citypulse-ai --source . --region asia-south1 --allow-unauthenticated \
-  --set-env-vars GEMINI_MODEL=gemini-3.5-flash --set-secrets GEMINI_API_KEY=gemini-api-key:latest
+cd frontend && npm run build && cd ..
+python deploy/aws/package.py          # -> dist/citypulse-eb.zip (FastAPI app + built SPA + Procfile)
 ```
+
+In the Elastic Beanstalk console, create an environment with the **Python** platform, upload `dist/citypulse-eb.zip`,
+and set the environment properties `GEMINI_API_KEY` and `GEMINI_MODEL=gemini-3.5-flash`.
+EB's nginx proxies port 80 to uvicorn on 8000, and `--proxy-headers` keeps per-client rate limiting accurate.
+
+The same app also runs as a container (`Dockerfile`) on any container host, such as Cloud Run, App Runner or ECS.
 
 ## Data sources and honesty notes
 - **Places**: real, well-known Pune landmarks and eateries. Coordinates are approximate. **Ratings, prices, cleanliness and accessibility values are illustrative demo data.**
