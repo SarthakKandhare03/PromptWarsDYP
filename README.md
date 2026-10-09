@@ -1,5 +1,7 @@
 # पुण्यात काय? (Punyat Kay? — "What's happening in Pune?")
 
+**Live demo:** https://punyat-kay-knd5p2vgxa-el.a.run.app (Google Cloud Run, asia-south1)
+
 **Feel the city. Read the signals. Move smarter.**
 
 A context-aware city intelligence platform for **Pune**, built for *PromptWars x BRAIN DYPCOEI* on the problem statement **"City Life: Exploring, Experiencing & Navigating the Chaos We Call Home."**
@@ -66,7 +68,8 @@ Single container → Google Cloud Run
   - **multimodal** report analysis (image + audio + text) with **structured JSON output**
   - **Grounding with Google Maps** for the assistant, with `lat_lng` retrieval context and cited Maps sources
   - natural-language route trade-off explanations
-- Containerised via `Dockerfile` (Cloud Run-ready); live demo hosted on AWS Elastic Beanstalk
+- **Google Cloud Run** (asia-south1): live deployment, built from the root `Dockerfile` by **Cloud Build**
+- **Secret Manager**: the Gemini key is injected at runtime and never baked into the image
 - **Google Fonts**: Space Grotesk + Inter
 
 ## Evaluation checklist
@@ -116,18 +119,18 @@ cd frontend && npm install && npm run dev        # http://localhost:5173
 cd backend && python -m pytest -q
 ```
 
-## Deploy (AWS Elastic Beanstalk)
+## Deploy (Google Cloud Run)
 
 ```bash
-cd frontend && npm run build && cd ..
-python deploy/aws/package.py          # -> dist/citypulse-eb.zip (FastAPI app + built SPA + Procfile)
+export PROJECT=prompt-wars-511106 GEMINI_API_KEY=...   # your key; stored in Secret Manager, not the image
+bash deploy/gcp/deploy.sh
 ```
 
-In the Elastic Beanstalk console, create an environment with the **Python** platform, upload `dist/citypulse-eb.zip`,
-and set the environment properties `GEMINI_API_KEY`, `GEMINI_MODEL=gemini-3.5-flash` and, optionally, `GOOGLE_MAPS_API_KEY`.
-EB's nginx proxies port 80 to uvicorn on 8000, and `--proxy-headers` keeps per-client rate limiting accurate.
+The script enables Cloud Run, Cloud Build, Artifact Registry and Secret Manager, stores the key as the `gemini-api-key` secret,
+and runs `gcloud run deploy --source .` (Cloud Build builds the multi-stage `Dockerfile`: React build, then FastAPI runtime as a non-root user).
+`.gcloudignore` keeps `.env`, `node_modules` and local data out of the upload.
 
-The same app also runs as a container (`Dockerfile`) on any container host, such as Cloud Run, App Runner or ECS.
+An AWS Elastic Beanstalk bundle is also available: `python deploy/aws/package.py`.
 
 ## Data sources and honesty notes
 - **Places**: real, well-known Pune landmarks and eateries. Coordinates are approximate. **Ratings, prices, cleanliness and accessibility values are illustrative demo data.**

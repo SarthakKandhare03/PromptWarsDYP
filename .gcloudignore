@@ -1,0 +1,14 @@
+# Never upload secrets or local build/state folders to Cloud Build.
+.env
+.env.*
+!.env.example
+.git/
+.gitignore
+**/node_modules/
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.data/
+frontend/dist/
+dist/
+deploy/aws/
