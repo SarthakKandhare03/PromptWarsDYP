@@ -30,3 +30,7 @@ npm-debug.log*
 .env
 .env.local
 .env.*.local
+
+# Python
+.venv/
+.pytest_cache/
