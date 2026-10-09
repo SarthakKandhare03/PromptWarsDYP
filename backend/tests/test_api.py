@@ -1,5 +1,6 @@
 """API tests. External calls (OSRM, Open-Meteo, Gemini) are stubbed so tests are offline and deterministic."""
 
+import time
 from dataclasses import replace
 
 import pytest
@@ -164,8 +165,10 @@ def test_oversized_body_rejected_before_parsing(client):
 
 
 def test_rate_limit_buckets_are_pruned(client):
-    main._hits["10.0.0.1"].append(0.0)  # stale bucket from long ago
-    main._last_prune = -1000.0
+    # Relative to the monotonic clock: on a freshly booted CI runner time.monotonic() can be < 60 s.
+    long_ago = time.monotonic() - 3600
+    main._hits["10.0.0.1"].append(long_ago)  # stale bucket from an hour ago
+    main._last_prune = long_ago
     client.post("/api/assistant", json={"query": "heritage"})
     assert "10.0.0.1" not in main._hits
 
