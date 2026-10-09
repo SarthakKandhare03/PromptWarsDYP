@@ -25,19 +25,21 @@ export const api = {
   places: () => request<Place[]>('/places'),
   reports: () => request<Report[]>('/reports'),
   pulse: () => request<Pulse>('/pulse'),
-  routes: (origin: [number, number], destination: [number, number], hour: number) =>
+  routes: (origin: [number, number], destination: [number, number], hour: number, lang = 'en') =>
     postJson<RouteResponse>('/routes', {
       origin: { lat: origin[0], lng: origin[1] },
       destination: { lat: destination[0], lng: destination[1] },
       hour,
+      lang,
     }),
   compare: (placeIds: string[], weights: Record<CompareDims, number>) =>
     postJson<CompareResult[]>('/compare', { place_ids: placeIds, weights }),
-  assistant: (query: string, location?: [number, number], history: { role: 'user' | 'assistant'; text: string }[] = []) =>
+  assistant: (query: string, location?: [number, number], history: { role: 'user' | 'assistant'; text: string }[] = [], lang = 'en') =>
     postJson<AssistantAnswer>('/assistant', {
       query,
       location: location ? { lat: location[0], lng: location[1] } : null,
       history: history.slice(-8),
+      lang,
     }),
   submitReport: (form: FormData) => request<Report>('/reports', { method: 'POST', body: form }),
   vote: (reportId: string, vote: 'confirm' | 'dispute' | 'resolved', voterId: string) =>

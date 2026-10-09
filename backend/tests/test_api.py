@@ -131,3 +131,37 @@ def test_rate_limit_returns_429(client, monkeypatch):
     monkeypatch.setattr(main, "settings", replace(settings, rate_limit_per_minute=2))
     codes = [client.post("/api/assistant", json={"query": "heritage"}).status_code for _ in range(3)]
     assert codes == [200, 200, 429]
+
+
+def test_language_is_validated(client):
+    ok = client.post("/api/assistant", json={"query": "heritage", "lang": "mr"})
+    assert ok.status_code == 200
+    assert client.post("/api/assistant", json={"query": "heritage", "lang": "fr"}).status_code == 422
+    body = {"origin": {"lat": 18.52, "lng": 73.84}, "destination": {"lat": 18.519, "lng": 73.858}, "hour": 9, "lang": "hi"}
+    assert client.post("/api/routes", json=body).status_code == 200
+
+
+def test_request_id_hsts_and_cache_headers(client):
+    res = client.get("/api/health", headers={"X-Request-ID": "trace-123"})
+    assert res.headers["X-Request-ID"] == "trace-123"
+    assert "max-age" in res.headers["Strict-Transport-Security"]
+    assert res.headers["Cache-Control"] == "no-store"
+    assert len(client.get("/api/health").headers["X-Request-ID"]) == 16  # generated when absent
+
+
+def test_oversized_body_rejected_before_parsing(client):
+    res = client.post("/api/assistant", content=b"x", headers={"Content-Length": str(7 * 1024 * 1024), "Content-Type": "application/json"})
+    assert res.status_code == 413
+
+
+def test_rate_limit_buckets_are_pruned(client):
+    main._hits["10.0.0.1"].append(0.0)  # stale bucket from long ago
+    main._last_prune = -1000.0
+    client.post("/api/assistant", json={"query": "heritage"})
+    assert "10.0.0.1" not in main._hits
+
+
+def test_city_exposes_manache_ganpati_in_order(client):
+    mg = client.get("/api/city").json()["manache_ganpati"]
+    assert [g["order"] for g in mg] == sorted(g["order"] for g in mg)
+    assert mg[0]["name"] == "Kasba Ganpati"

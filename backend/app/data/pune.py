@@ -209,3 +209,15 @@ def seed_history(now: datetime | None = None) -> list[Report]:
                 status="resolved", demo=True,
             ))
     return out
+
+
+# The five "Manache Ganpati" (honoured Ganpatis) of Pune in their traditional order, plus
+# Dagdusheth. Coordinates are approximate; used for a walking darshan route during Ganeshotsav.
+MANACHE_GANPATI: list[dict] = [
+    {"order": 1, "name": "Kasba Ganpati", "name_mr": "कसबा गणपती", "lat": 18.5193, "lng": 73.8583},
+    {"order": 2, "name": "Tambdi Jogeshwari", "name_mr": "तांबडी जोगेश्वरी", "lat": 18.5172, "lng": 73.8566},
+    {"order": 3, "name": "Guruji Talim", "name_mr": "गुरुजी तालीम", "lat": 18.5160, "lng": 73.8578},
+    {"order": 4, "name": "Tulshibaug", "name_mr": "तुळशीबाग", "lat": 18.5143, "lng": 73.8553},
+    {"order": 5, "name": "Kesari Wada", "name_mr": "केसरीवाडा", "lat": 18.5115, "lng": 73.8512},
+    {"order": 6, "name": "Shrimant Dagdusheth Halwai Ganpati", "name_mr": "श्रीमंत दगडूशेठ हलवाई गणपती", "lat": 18.5164, "lng": 73.8561},
+]

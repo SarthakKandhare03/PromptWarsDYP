@@ -4,20 +4,13 @@ import { motion } from 'framer-motion'
 import { Camera, CheckCircle2, Loader2, Lock, Mic, Square, Trash2 } from 'lucide-react'
 import { api } from '../api'
 import { useApp } from '../state/AppState'
+import { useI18n } from '../i18n'
 import type { Report, ReportCategory } from '../types'
 import { CityMap } from '../components/CityMap'
 import { TrustBadge } from '../components/TrustBadge'
 import { deviceId } from '../identity'
 
-const CATEGORIES: { id: ReportCategory; label: string }[] = [
-  { id: 'waterlogging', label: 'Waterlogging' },
-  { id: 'pothole', label: 'Pothole / road hazard' },
-  { id: 'traffic', label: 'Traffic disruption' },
-  { id: 'accident', label: 'Accident' },
-  { id: 'streetlight', label: 'Streetlight out' },
-  { id: 'accessibility', label: 'Accessibility barrier' },
-  { id: 'other', label: 'Other' },
-]
+const CATEGORIES: ReportCategory[] = ['waterlogging', 'pothole', 'traffic', 'accident', 'streetlight', 'accessibility', 'other']
 const MAX_BYTES = 5 * 1024 * 1024
 const PUNE = { minLat: 18.3, maxLat: 18.75, minLng: 73.65, maxLng: 74.1 }
 
@@ -25,6 +18,7 @@ type Step = 'details' | 'review' | 'done'
 
 export function ReportPage() {
   const { reports, addReport, notify } = useApp()
+  const { t } = useI18n()
   const [step, setStep] = useState<Step>('details')
   const [category, setCategory] = useState<ReportCategory>('waterlogging')
   const [description, setDescription] = useState('')
@@ -32,6 +26,7 @@ export function ReportPage() {
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [audio, setAudio] = useState<Blob | null>(null)
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [recording, setRecording] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -40,20 +35,26 @@ export function ReportPage() {
   const recorder = useRef<MediaRecorder | null>(null)
 
   useEffect(() => () => { if (photoUrl) URL.revokeObjectURL(photoUrl) }, [photoUrl])
+  useEffect(() => () => { if (audioUrl) URL.revokeObjectURL(audioUrl) }, [audioUrl])
 
   function onPhoto(f: File | undefined) {
     if (!f) return
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(f.type)) {
-      setErrors((e) => ({ ...e, photo: 'Use a JPEG, PNG or WebP image.' }))
+      setErrors((e) => ({ ...e, photo: t('rep.err.photoType') }))
       return
     }
     if (f.size > MAX_BYTES) {
-      setErrors((e) => ({ ...e, photo: 'Image must be under 5 MB.' }))
+      setErrors((e) => ({ ...e, photo: t('rep.err.photoSize') }))
       return
     }
     setErrors(({ photo: _p, ...rest }) => rest)
     setPhoto(f)
     setPhotoUrl(URL.createObjectURL(f))
+  }
+
+  function setVoice(blob: Blob | null) {
+    setAudio(blob)
+    setAudioUrl(blob ? URL.createObjectURL(blob) : null)
   }
 
   async function toggleRecording() {
@@ -68,10 +69,10 @@ export function ReportPage() {
       const chunks: BlobPart[] = []
       rec.ondataavailable = (e) => chunks.push(e.data)
       rec.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop())
+        stream.getTracks().forEach((tr) => tr.stop())
         const blob = new Blob(chunks, { type: rec.mimeType.split(';')[0] || 'audio/webm' })
-        setAudio(blob.size > MAX_BYTES ? null : blob)
-        if (blob.size > MAX_BYTES) notify('Recording too long (over 5 MB)', 'error')
+        if (blob.size > MAX_BYTES) notify(t('rep.err.long'), 'error')
+        setVoice(blob.size > MAX_BYTES ? null : blob)
         setRecording(false)
       }
       recorder.current = rec
@@ -79,15 +80,15 @@ export function ReportPage() {
       setRecording(true)
       setTimeout(() => { if (rec.state === 'recording') rec.stop() }, 30_000)
     } catch {
-      notify('Microphone unavailable or permission denied', 'error')
+      notify(t('rep.err.mic'), 'error')
     }
   }
 
   function validate(): boolean {
     const e: Record<string, string> = {}
-    if (description.trim().length < 5) e.description = 'Describe the issue in at least 5 characters.'
-    if (!point) e.point = 'Tap the map to mark where it is.'
-    else if (point[0] < PUNE.minLat || point[0] > PUNE.maxLat || point[1] < PUNE.minLng || point[1] > PUNE.maxLng) e.point = 'Location must be within Pune.'
+    if (description.trim().length < 5) e.description = t('rep.err.desc')
+    if (!point) e.point = t('rep.err.point')
+    else if (point[0] < PUNE.minLat || point[0] > PUNE.maxLat || point[1] < PUNE.minLng || point[1] > PUNE.maxLng) e.point = t('rep.err.city')
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -108,16 +109,16 @@ export function ReportPage() {
       setResult(r)
       addReport(r)
       setStep('done')
-      notify('Report received and scored by the Trust Engine', 'success')
+      notify(t('rep.ok'), 'success')
     } catch (e) {
-      notify(e instanceof Error ? e.message : 'Submission failed', 'error')
+      notify(e instanceof Error ? e.message : t('rep.fail'), 'error')
     } finally {
       setSubmitting(false)
     }
   }
 
   function reset() {
-    setStep('details'); setDescription(''); setPoint(null); setPhoto(null); setPhotoUrl(null); setAudio(null); setResult(null)
+    setStep('details'); setDescription(''); setPoint(null); setPhoto(null); setPhotoUrl(null); setVoice(null); setResult(null)
   }
 
   const stepIdx = { details: 0, review: 1, done: 2 }[step]
@@ -126,76 +127,76 @@ export function ReportPage() {
     <div className="container">
       <header className="page-head">
         <div>
-          <span className="eyebrow" style={{ color: 'var(--amber)' }}>Smart City Signals</span>
-          <h1>Report what you see.</h1>
-          <p>Text, photo or voice in English, Marathi or Hindi. AI structures it, the Trust Engine checks it against other reports and live weather, and it's on the map instantly.</p>
+          <span className="eyebrow" style={{ color: 'var(--amber)' }}>{t('rep.eyebrow')}</span>
+          <h1>{t('rep.title')}</h1>
+          <p>{t('rep.sub')}</p>
         </div>
       </header>
 
       <div className="workspace">
         <div className="side">
           <div className="panel panel-pad">
-            <ol className="steps" aria-label="Progress">
-              {['Details', 'Review', 'Verification'].map((s, i) => (
-                <li key={s} className={i < stepIdx ? 'done' : i === stepIdx ? 'current' : ''} aria-current={i === stepIdx ? 'step' : undefined}>{s}</li>
+            <ol className="steps" aria-label={t('rep.progress')}>
+              {['rep.s1', 'rep.s2', 'rep.s3'].map((s, i) => (
+                <li key={s} className={i < stepIdx ? 'done' : i === stepIdx ? 'current' : ''} aria-current={i === stepIdx ? 'step' : undefined}>{t(s)}</li>
               ))}
             </ol>
 
             {step === 'details' && (
               <form className="filters" onSubmit={(e) => { e.preventDefault(); if (validate()) { setReviewedAt(new Date()); setStep('review') } }} noValidate>
                 <div className="field">
-                  <label htmlFor="cat">Issue category</label>
+                  <label htmlFor="cat">{t('rep.category')}</label>
                   <select id="cat" className="input" value={category} onChange={(e) => setCategory(e.target.value as ReportCategory)}>
-                    {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                    {CATEGORIES.map((c) => <option key={c} value={c}>{t(`cat.${c}`)}</option>)}
                   </select>
                 </div>
                 <div className="field">
-                  <label htmlFor="desc">Description</label>
+                  <label htmlFor="desc">{t('rep.desc')}</label>
                   <textarea id="desc" className="input" value={description} maxLength={1000}
                     aria-invalid={!!errors.description} aria-describedby={errors.description ? 'desc-err' : undefined}
-                    onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Water above the ankle near the bus stop, two-wheelers stuck" />
+                    onChange={(e) => setDescription(e.target.value)} placeholder={t('rep.descPh')} />
                   {errors.description && <span id="desc-err" className="error-text">{errors.description}</span>}
                 </div>
                 <div className="field">
-                  <span className="label">Location</span>
-                  <span className="small" style={{ color: point ? 'var(--white)' : 'var(--slate)' }}>
-                    {point ? `${point[0].toFixed(5)}, ${point[1].toFixed(5)}` : 'Tap the map to drop a pin'}
+                  <span className="label">{t('rep.location')}</span>
+                  <span className="small" style={{ color: point ? 'var(--text)' : 'var(--slate)' }}>
+                    {point ? `${point[0].toFixed(5)}, ${point[1].toFixed(5)}` : t('rep.tapMap')}
                   </span>
                   {errors.point && <span className="error-text" role="alert">{errors.point}</span>}
                 </div>
                 <label className="dropzone">
-                  {photoUrl ? <img src={photoUrl} alt="Selected evidence preview" className="preview-img" /> : <Camera size={22} aria-hidden />}
-                  <span className="small">{photo ? photo.name : 'Add a photo (optional, under 5 MB)'}</span>
+                  {photoUrl ? <img src={photoUrl} alt={t('rep.preview')} className="preview-img" /> : <Camera size={22} aria-hidden />}
+                  <span className="small">{photo ? photo.name : t('rep.addPhoto')}</span>
                   <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => onPhoto(e.target.files?.[0])} />
                 </label>
                 {errors.photo && <span className="error-text">{errors.photo}</span>}
                 <div className="row">
                   <button type="button" className="btn sm" onClick={toggleRecording} aria-pressed={recording}>
-                    {recording ? <><span className="rec-dot" aria-hidden /> <Square size={14} aria-hidden /> Stop</> : <><Mic size={14} aria-hidden /> Record voice note</>}
+                    {recording ? <><span className="rec-dot" aria-hidden /> <Square size={14} aria-hidden /> {t('rep.stop')}</> : <><Mic size={14} aria-hidden /> {t('rep.record')}</>}
                   </button>
-                  {audio && (
+                  {audioUrl && (
                     <>
-                      <audio controls src={URL.createObjectURL(audio)} style={{ height: 32, maxWidth: 180 }} />
-                      <button type="button" className="btn sm ghost icon" aria-label="Remove voice note" onClick={() => setAudio(null)}><Trash2 size={14} aria-hidden /></button>
+                      <audio controls src={audioUrl} style={{ height: 32, maxWidth: 180 }} />
+                      <button type="button" className="btn sm ghost icon" aria-label={t('rep.removeVoice')} onClick={() => setVoice(null)}><Trash2 size={14} aria-hidden /></button>
                     </>
                   )}
                 </div>
-                <div className="notice"><Lock size={14} aria-hidden /> We store only the category, text, pin, whether media was attached, and an anonymous device id (so your accuracy can earn trust). Photos and audio are analysed once and not kept. No account, no name.</div>
-                <button className="btn primary" type="submit">Review report</button>
+                <div className="notice"><Lock size={14} aria-hidden /> {t('rep.privacy')}</div>
+                <button className="btn primary" type="submit">{t('rep.reviewBtn')}</button>
               </form>
             )}
 
             {step === 'review' && (
               <div className="filters">
-                <div><span className="eyebrow">Category</span><p>{CATEGORIES.find((c) => c.id === category)?.label}</p></div>
-                <div><span className="eyebrow">Description</span><p>{description}</p></div>
-                <div><span className="eyebrow">Location</span><p className="small">{point?.map((n) => n.toFixed(5)).join(', ')}</p></div>
-                <div><span className="eyebrow">Evidence</span><p className="small">{[photo && 'Photo', audio && 'Voice note'].filter(Boolean).join(' + ') || 'Text only (lower starting trust)'}</p></div>
-                <div><span className="eyebrow">Timestamp</span><p className="small">{reviewedAt?.toLocaleString()}</p></div>
+                <div><span className="eyebrow">{t('rep.category')}</span><p>{t(`cat.${category}`)}</p></div>
+                <div><span className="eyebrow">{t('rep.desc')}</span><p>{description}</p></div>
+                <div><span className="eyebrow">{t('rep.location')}</span><p className="small">{point?.map((n) => n.toFixed(5)).join(', ')}</p></div>
+                <div><span className="eyebrow">{t('rep.evidence')}</span><p className="small">{[photo && t('rep.photo'), audio && t('rep.voice')].filter(Boolean).join(' + ') || t('rep.textOnly')}</p></div>
+                <div><span className="eyebrow">{t('rep.timestamp')}</span><p className="small">{reviewedAt?.toLocaleString()}</p></div>
                 <div className="row">
-                  <button className="btn" onClick={() => setStep('details')}>Edit</button>
+                  <button className="btn" onClick={() => setStep('details')}>{t('rep.edit')}</button>
                   <button className="btn primary" onClick={submit} disabled={submitting}>
-                    {submitting ? <><Loader2 size={16} aria-hidden /> Analysing…</> : 'Submit report'}
+                    {submitting ? <><Loader2 size={16} className="spin" aria-hidden /> {t('rep.analysing')}</> : t('rep.submit')}
                   </button>
                 </div>
               </div>
@@ -203,7 +204,7 @@ export function ReportPage() {
 
             {step === 'done' && result && (
               <motion.div className="filters" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} aria-live="polite">
-                <div className="row"><CheckCircle2 color="var(--lime)" aria-hidden /> <strong>Report live on the map</strong></div>
+                <div className="row"><CheckCircle2 color="var(--lime)" aria-hidden /> <strong>{t('rep.live')}</strong></div>
                 <div className="row between">
                   <TrustBadge label={result.trust_label} />
                   <span className="mono-num" style={{ fontSize: 28 }}>{result.trust_score}<span className="muted small">/100</span></span>
@@ -211,18 +212,18 @@ export function ReportPage() {
                 <div className="trust-meter"><i style={{ width: `${result.trust_score}%` }} /></div>
                 {result.ai_summary && (
                   <div className="answer" style={{ marginTop: 0 }}>
-                    <span className="eyebrow lav">Gemini summary{result.language ? ` · input: ${result.language}` : ''}</span>
+                    <span className="eyebrow lav">{t('rep.geminiSummary')}{result.language ? t('rep.input', { l: result.language }) : ''}</span>
                     <p style={{ marginTop: 4 }}>{result.ai_summary}</p>
                   </div>
                 )}
-                {!result.ai_used && <p className="tiny muted">AI analysis unavailable: scored on evidence and corroboration only.</p>}
+                {!result.ai_used && <p className="tiny muted">{t('rep.noAi')}</p>}
                 <ul className="small muted" style={{ margin: 0, paddingLeft: 18 }}>
-                  {result.trust_reasons.map((t) => <li key={t}>{t}</li>)}
+                  {result.trust_reasons.map((r) => <li key={r}>{r}</li>)}
                 </ul>
-                <p className="tiny muted">Verification pending: trust rises automatically if others report the same issue nearby or weather data confirms it.</p>
+                <p className="tiny muted">{t('rep.pending')}</p>
                 <div className="row">
-                  <button className="btn" onClick={reset}>Report another</button>
-                  <Link className="btn primary" to={`/safety?report=${result.id}`}>See it on the safety map</Link>
+                  <button className="btn" onClick={reset}>{t('rep.another')}</button>
+                  <Link className="btn primary" to={`/safety?report=${result.id}`}>{t('rep.seeMap')}</Link>
                 </div>
               </motion.div>
             )}
@@ -234,9 +235,9 @@ export function ReportPage() {
             picked={point}
             onPick={step === 'details' ? (p) => { setPoint(p); setErrors(({ point: _x, ...rest }) => rest) } : undefined}
             focus={result ? [result.lat, result.lng] : null}
-            label="Tap to choose report location"
+            label={t('rep.mapLabel')}
           />
-          {step === 'details' && <div className="float-panel tl glass small">Tap the map to pin the issue</div>}
+          {step === 'details' && <div className="float-panel tl glass small">{t('rep.tapHint')}</div>}
         </div>
       </div>
     </div>

@@ -103,6 +103,7 @@ export interface CityInfo {
   zoom: number
   accident_zones: { name: string; lat: number; lng: number }[]
   support_points: { name: string; kind: string; lat: number; lng: number }[]
+  manache_ganpati: TrailStop[]
   data_notice: string
 }
 
@@ -140,4 +141,12 @@ export interface HotspotResponse {
   model: { samples: number; cells: number; hotspots: number; trained_at: string | null; half_life_days: number }
   hotspots: Hotspot[]
   notice: string
+}
+
+export interface TrailStop {
+  order: number
+  name: string
+  name_mr: string
+  lat: number
+  lng: number
 }

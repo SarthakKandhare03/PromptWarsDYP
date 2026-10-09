@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 import uuid
 from collections import defaultdict, deque
@@ -12,7 +13,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.config import settings
-from app.data.pune import ACCIDENT_ZONES, CITY, PLACES, PLACES_BY_ID, SUPPORT_POINTS
+from app.data.pune import ACCIDENT_ZONES, CITY, MANACHE_GANPATI, PLACES, PLACES_BY_ID, SUPPORT_POINTS
 from app.models import (
     VOTER_ID_PATTERN,
     AssistantRequest,
@@ -44,6 +45,19 @@ app.add_middleware(
 )
 
 _hits: dict[str, deque[float]] = defaultdict(deque)
+_last_prune = time.monotonic()
+MAX_BODY_BYTES = 6 * 1024 * 1024  # one 5 MB upload + form fields
+log = logging.getLogger("punyat-kay")
+
+
+def _prune_rate_limits(now: float) -> None:
+    """Drop idle IP buckets so the limiter cannot be used to grow memory without bound."""
+    global _last_prune
+    if now - _last_prune < 60:
+        return
+    _last_prune = now
+    for ip in [ip for ip, w in _hits.items() if not w or now - w[-1] > 60]:
+        del _hits[ip]
 
 GOOGLE_MAPS_SRC = "https://maps.googleapis.com https://maps.gstatic.com"
 CSP = (
@@ -58,17 +72,33 @@ CSP = (
 
 @app.middleware("http")
 async def security_and_rate_limit(request: Request, call_next):
-    """Per-IP sliding-window rate limit on /api plus standard security headers."""
+    """Request id, body-size guard, per-IP sliding-window rate limit, security + cache headers."""
+    started = time.monotonic()
+    request_id = request.headers.get("x-request-id", "")[:64] or uuid.uuid4().hex[:16]
+    length = request.headers.get("content-length")
+    if length and length.isdigit() and int(length) > MAX_BODY_BYTES:
+        return JSONResponse({"detail": "Request body too large."}, status_code=413, headers={"X-Request-ID": request_id})
     if request.url.path.startswith("/api/") and request.method == "POST":
         ip = request.client.host if request.client else "unknown"
-        window = _hits[ip]
         now = time.monotonic()
+        _prune_rate_limits(now)
+        window = _hits[ip]
         while window and now - window[0] > 60:
             window.popleft()
         if len(window) >= settings.rate_limit_per_minute:
-            return JSONResponse({"detail": "Too many requests, slow down."}, status_code=429)
+            return JSONResponse({"detail": "Too many requests, slow down."}, status_code=429,
+                                headers={"Retry-After": "60", "X-Request-ID": request_id})
         window.append(now)
     response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    path = request.url.path
+    if path.startswith("/assets/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"  # hashed filenames
+    elif path.startswith("/api/"):
+        response.headers.setdefault("Cache-Control", "no-store")
+    if path.startswith("/api/"):
+        log.info("%s %s %s %.0fms id=%s", request.method, path, response.status_code, (time.monotonic() - started) * 1000, request_id)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -96,6 +126,7 @@ async def city():
         **CITY,
         "accident_zones": [{"name": n, "lat": la, "lng": lo} for n, la, lo in ACCIDENT_ZONES],
         "support_points": [{"name": n, "kind": k, "lat": la, "lng": lo} for n, k, la, lo in SUPPORT_POINTS],
+        "manache_ganpati": MANACHE_GANPATI,
         "data_notice": "Places are real; ratings, prices and accessibility values are illustrative demo data. "
         "Accident corridors are approximate points on publicly reported corridors, not an official list.",
     }
@@ -268,7 +299,7 @@ async def routes(req: RouteRequest):
         }
         for i, s in enumerate(scored)
     ]
-    explanation = await gemini.explain_routes(req.hour, summary) if settings.ai_enabled else None
+    explanation = await gemini.explain_routes(req.hour, summary, req.lang) if settings.ai_enabled else None
     return RouteResponse(
         routes=scored,
         explanation=explanation or _rules_explanation(summary),
@@ -317,7 +348,7 @@ async def assistant(req: AssistantRequest):
             f"{p.name} [{p.category.value}, {p.area}, {'₹' * p.price_level}, {', '.join(p.tags[:3])}]" for p in PLACES
         )
         history = " | ".join(f"{t.role}: {t.text[:300]}" for t in req.history[-6:])
-        ai = await gemini.ask_assistant(req.query, loc, brief, places_brief, history)
+        ai = await gemini.ask_assistant(req.query, loc, brief, places_brief, history, req.lang)
         if ai:
             if ai["engine"] == "gemini":
                 ai["sources"] = [{"title": "Pune dataset (demo values)", "uri": ""}]

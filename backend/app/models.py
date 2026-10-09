@@ -88,6 +88,7 @@ class Report(BaseModel):
 
 
 VOTER_ID_PATTERN = r"^[A-Za-z0-9-]{8,64}$"
+UiLang = Literal["en", "hi", "mr"]
 
 
 class VoteRequest(BaseModel):
@@ -99,6 +100,7 @@ class RouteRequest(BaseModel):
     origin: Coord
     destination: Coord
     hour: int = Field(ge=0, le=23, description="Local hour of planned travel")
+    lang: UiLang = "en"
 
     @field_validator("destination")
     @classmethod
@@ -157,6 +159,7 @@ class AssistantRequest(BaseModel):
     query: str = Field(min_length=2, max_length=500)
     location: Coord | None = None
     history: list[ChatTurn] = Field(default_factory=list, max_length=8)
+    lang: UiLang = "en"
 
     @field_validator("query")
     @classmethod

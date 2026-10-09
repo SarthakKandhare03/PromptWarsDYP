@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   ArrowRight, ArrowUpRight, Compass, GitCompareArrows, Landmark, Loader2, Radar, Search, ShieldAlert,
@@ -7,42 +7,41 @@ import {
 } from 'lucide-react'
 import { api } from '../api'
 import { useApp } from '../state/AppState'
+import { useI18n } from '../i18n'
 import type { AssistantAnswer, Place, PlaceCategory } from '../types'
 import { CityMap } from '../components/CityMap'
 import { CityPulse } from '../components/CityPulse'
 import { PlacePhoto } from '../components/PlacePhoto'
 import { TrustBadge } from '../components/TrustBadge'
 import { placeUrl, streetViewUrl } from '../gmaps'
+import { haversineKm } from '../geo'
+import { PuneriPati } from '../components/PuneriPati'
 
-const EXAMPLES = [
-  'Best street food under ₹200 near FC Road',
-  'Plan a three-hour Pune heritage walk',
-  'Show recent road hazards near my route',
-  'Find wheelchair-accessible cafes',
+const EXAMPLES = ['home.ex1', 'home.ex2', 'home.ex3', 'home.ex4']
+const FILTERS: { id: PlaceCategory | 'all'; key: string }[] = [
+  { id: 'all', key: 'pcat.all' },
+  { id: 'heritage', key: 'pcat.heritage' },
+  { id: 'food', key: 'pcat.food' },
+  { id: 'cafe', key: 'pcat.cafe' },
+  { id: 'attraction', key: 'pcat.views' },
 ]
-
-const FILTERS: { id: PlaceCategory | 'all'; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'heritage', label: 'Heritage' },
-  { id: 'food', label: 'Food' },
-  { id: 'cafe', label: 'Cafes' },
-  { id: 'attraction', label: 'Views & forts' },
-]
-
 const PILLARS = [
-  { to: '/explore', title: 'Explore & Hospitality', text: 'Food, cafes, stays and budget finds, filtered by what matters to you.', Icon: Compass, bg: '#fff6c7' },
-  { to: '/explore?category=heritage', title: 'History & Culture', text: 'Peshwa wadas, rock-cut caves and living craft lanes like Tambat Ali.', Icon: Landmark, bg: '#ece8ff' },
-  { to: '/safety', title: 'Safety & Security', text: 'Fastest vs fewest-known-risks route, scored for the hour you travel.', Icon: ShieldAlert, bg: '#e0f2f8' },
-  { to: '/compare', title: 'Best vs Worst', text: 'Your priorities, transparent dimensions, no black-box "best".', Icon: GitCompareArrows, bg: '#e4f5e1' },
-  { to: '/report', title: 'Smart City Signals', text: 'Photo, voice or text reports, verified by the Trust Engine.', Icon: Radar, bg: '#fff1d6' },
+  { to: '/explore', n: 1, Icon: Compass, bg: '#fff6c7' },
+  { to: '/explore?category=heritage', n: 2, Icon: Landmark, bg: '#ece8ff' },
+  { to: '/safety', n: 3, Icon: ShieldAlert, bg: '#e0f2f8' },
+  { to: '/compare', n: 4, Icon: GitCompareArrows, bg: '#e4f5e1' },
+  { to: '/report', n: 5, Icon: Radar, bg: '#fff1d6' },
 ]
 
-type MapLayer = 'places' | 'reports' | 'corridors'
+type MapLayer = 'places' | 'reports' | 'corridors' | 'festival'
+
+const istHour = () => Number(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', hour12: false })) % 24
 
 const reveal = {
   hidden: { opacity: 0, y: 16 },
   show: (i: number) => ({ opacity: 1, y: 0, transition: { delay: 0.08 * i, duration: 0.55, ease: [0.2, 0.7, 0.2, 1] as const } }),
 }
+const engineKey = (e: AssistantAnswer['engine']) => (e === 'rules' ? 'engine.rules' : e === 'gemini' ? 'engine.gemini' : 'engine.maps')
 
 /** Line-art globe with orbiting pins, an editorial nod to "exploring the city". */
 function GlobeArt() {
@@ -53,27 +52,29 @@ function GlobeArt() {
       <ellipse cx="115" cy="115" rx="48" ry="62" />
       <path d="M53 115h124M60 85h110M60 145h110M74 62h82M74 168h82" />
       <g className="spin">
-        <ellipse cx="115" cy="115" rx="104" ry="40" transform="rotate(-22 115 115)" strokeDasharray="2 0" />
-        <g transform="translate(205 70)"><path d="M0 -9a7 7 0 0 0-7 7c0 5 7 12 7 12s7-7 7-12a7 7 0 0 0-7-7z" fill="#111" /><circle cy="-2" r="2.4" fill="#FFE14D" stroke="none" /></g>
-        <g transform="translate(22 160)"><path d="M0 -9a7 7 0 0 0-7 7c0 5 7 12 7 12s7-7 7-12a7 7 0 0 0-7-7z" fill="#111" /><circle cy="-2" r="2.4" fill="#FFE14D" stroke="none" /></g>
+        <ellipse cx="115" cy="115" rx="104" ry="40" transform="rotate(-22 115 115)" />
+        <g transform="translate(205 70)"><path d="M0 -9a7 7 0 0 0-7 7c0 5 7 12 7 12s7-7 7-12a7 7 0 0 0-7-7z" fill="currentColor" /><circle cy="-2" r="2.4" fill="#FFE14D" stroke="none" /></g>
+        <g transform="translate(22 160)"><path d="M0 -9a7 7 0 0 0-7 7c0 5 7 12 7 12s7-7 7-12a7 7 0 0 0-7-7z" fill="currentColor" /><circle cy="-2" r="2.4" fill="#FFE14D" stroke="none" /></g>
       </g>
-      <path d="M30 40l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" fill="#111" stroke="none" />
-      <path d="M196 182l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" fill="#111" stroke="none" />
-      <path d="M178 22l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="#111" stroke="none" />
+      <path d="M30 40l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" fill="currentColor" stroke="none" />
+      <path d="M196 182l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" fill="currentColor" stroke="none" />
+      <path d="M178 22l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="currentColor" stroke="none" />
     </svg>
   )
 }
 
 export function HomePage() {
   const { places, reports, city, loading, setHighlight } = useApp()
+  const { t, lang } = useI18n()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const [query, setQuery] = useState('')
   const [answer, setAnswer] = useState<AssistantAnswer | null>(null)
   const [asking, setAsking] = useState(false)
   const [askError, setAskError] = useState<string | null>(null)
   const [filter, setFilter] = useState<PlaceCategory | 'all'>('all')
   const [featuredId, setFeaturedId] = useState('shaniwar-wada')
-  const [layer, setLayer] = useState<MapLayer>('places')
+  const [layer, setLayer] = useState<MapLayer>(() => (params.get('layer') === 'festival' ? 'festival' : 'places'))
   const [focus, setFocus] = useState<[number, number] | null>(null)
 
   const cards = useMemo(
@@ -92,14 +93,14 @@ export function HomePage() {
   async function ask(q: string) {
     const text = q.trim()
     if (text.length < 2) {
-      setAskError('Type at least two characters.')
+      setAskError(t('home.minChars'))
       return
     }
     setQuery(text)
     setAsking(true)
     setAskError(null)
     try {
-      const res = await api.assistant(text)
+      const res = await api.assistant(text, undefined, [], lang)
       setAnswer(res)
       setHighlight(res.place_ids)
       const first = places.find((p) => p.id === res.place_ids[0])
@@ -111,7 +112,7 @@ export function HomePage() {
         setLayer('reports')
       }
     } catch (e) {
-      setAskError(e instanceof Error ? e.message : 'Something went wrong')
+      setAskError(e instanceof Error ? e.message : t('chat.error'))
     } finally {
       setAsking(false)
     }
@@ -124,25 +125,34 @@ export function HomePage() {
 
   const recent = reports.slice(0, 5)
   const zoneCount = city?.accident_zones.length ?? 0
+  const trail = city?.manache_ganpati ?? []
+  const trailKm = trail.slice(1).reduce((sum, s, i) => sum + haversineKm([trail[i].lat, trail[i].lng], [s.lat, s.lng]), 0)
+  const hourNow = istHour()
+  const napTime = hourNow >= 13 && hourNow < 16
 
   return (
     <>
       <section className="hero">
+        {napTime && (
+          <div className="container" style={{ marginBottom: 20 }}>
+            <div className="nap-banner" role="note">
+              <strong lang="mr">दुपारी १ ते ४</strong>
+              <span>{t('nap.d')}</span>
+            </div>
+          </div>
+        )}
         <div className="container hero-grid">
-          {/* ---------- left: editorial headline + destination cards ---------- */}
           <div className="hero-copy">
             <div className="hero-title">
               <motion.h1 variants={reveal} initial="hidden" animate="show" custom={0}>
-                Your city has <em>another side.</em>
+                {t('home.t.pre')}<em>{t('home.t.em')}</em>{t('home.t.post')}
               </motion.h1>
               <GlobeArt />
             </div>
-            <motion.p className="hero-sub" variants={reveal} initial="hidden" animate="show" custom={1}>
-              Hidden places, verified city signals and smarter routes across Pune, all in one place.
-            </motion.p>
-            <motion.div className="chips" role="group" aria-label="Filter places" variants={reveal} initial="hidden" animate="show" custom={2}>
+            <motion.p className="hero-sub" variants={reveal} initial="hidden" animate="show" custom={1}>{t('home.sub')}</motion.p>
+            <motion.div className="chips" role="group" aria-label={t('exp.category')} variants={reveal} initial="hidden" animate="show" custom={2}>
               {FILTERS.map((f) => (
-                <button key={f.id} className="chip" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>{f.label}</button>
+                <button key={f.id} className="chip" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>{t(f.key)}</button>
               ))}
             </motion.div>
 
@@ -160,34 +170,26 @@ export function HomePage() {
                   <PlacePhoto place={p} />
                   <span className="meta">
                     {'₹'.repeat(p.price_level)} · {p.area}<br />
-                    <span className="muted">{p.rating}★ · {p.review_count?.toLocaleString()} reviews (demo)</span>
+                    <span className="muted">{p.rating}★ · {t('home.reviewsDemo', { n: p.review_count?.toLocaleString() ?? 0 })}</span>
                   </span>
                 </motion.button>
               ))}
             </div>
-            <Link to="/explore" className="btn" style={{ alignSelf: 'flex-start' }}>See all {places.length} places <ArrowRight size={16} aria-hidden /></Link>
+            <Link to="/explore" className="btn" style={{ alignSelf: 'flex-start' }}>{t('home.seeAll', { n: places.length })} <ArrowRight size={16} aria-hidden /></Link>
           </div>
 
-          {/* ---------- right: search, featured place, live map ---------- */}
           <div className="hero-copy">
             <motion.div className="search-box" variants={reveal} initial="hidden" animate="show" custom={1}>
               <form onSubmit={onSubmit} role="search">
                 <Search size={18} aria-hidden />
-                <label htmlFor="ask" className="sr-only">Ask पुण्यात काय?</label>
-                <input
-                  id="ask"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Find a place, plan a trip, or ask about your city..."
-                  maxLength={500}
-                  autoComplete="off"
-                />
-                <button className="btn primary icon" type="submit" disabled={asking} aria-label="Ask">
-                  {asking ? <Loader2 size={18} aria-hidden /> : <SlidersHorizontal size={18} aria-hidden />}
+                <label htmlFor="ask" className="sr-only">{t('home.ask')}</label>
+                <input id="ask" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('home.search.ph')} maxLength={500} autoComplete="off" />
+                <button className="btn primary icon" type="submit" disabled={asking} aria-label={t('home.ask')}>
+                  {asking ? <Loader2 size={18} className="spin" aria-hidden /> : <SlidersHorizontal size={18} aria-hidden />}
                 </button>
               </form>
-              <div className="examples" aria-label="Example questions">
-                {EXAMPLES.map((ex) => <button key={ex} type="button" onClick={() => void ask(ex)}>{ex}</button>)}
+              <div className="examples">
+                {EXAMPLES.map((ex) => <button key={ex} type="button" onClick={() => void ask(t(ex))}>{t(ex)}</button>)}
               </div>
               {askError && <p className="error-text" role="alert" style={{ marginTop: 8 }}>{askError}</p>}
               <div aria-live="polite">
@@ -195,18 +197,16 @@ export function HomePage() {
                 {answer && !asking && (
                   <div className="answer">
                     <div className="row between">
-                      <span className="eyebrow lav"><Sparkles size={13} aria-hidden /> पुण्यात काय? answer</span>
-                      <span className={`badge ${answer.engine === 'rules' ? 'demo' : 'ai'}`}>
-                        {answer.engine === 'rules' ? 'Rule-based (AI unavailable)' : answer.engine === 'gemini' ? 'Gemini · Pune dataset' : 'Gemini · grounded in Google Maps'}
-                      </span>
+                      <span className="eyebrow lav"><Sparkles size={13} aria-hidden /> {t('home.answer')}</span>
+                      <span className={`badge ${answer.engine === 'rules' ? 'demo' : 'ai'}`}>{t(engineKey(answer.engine))}</span>
                     </div>
                     <pre>{answer.answer.replace(/\*\*(.+?)\*\*/g, '$1').replace(/^\s*[*-]\s+/gm, '• ')}</pre>
                     <div className="meta">
-                      <span>Answered {new Date(answer.answered_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>{t('home.answered', { time: new Date(answer.answered_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}</span>
                       {answer.sources.filter((s) => s.uri).map((s) => (
                         <a key={s.uri} href={s.uri} target="_blank" rel="noopener noreferrer">{s.title}</a>
                       ))}
-                      {answer.place_ids.length > 0 && <span>{answer.place_ids.length} place(s) highlighted on the map</span>}
+                      {answer.place_ids.length > 0 && <span>{t('home.highlighted', { n: answer.place_ids.length })}</span>}
                     </div>
                   </div>
                 )}
@@ -219,28 +219,29 @@ export function HomePage() {
                 <div className="body">
                   <div className="row between" style={{ flexWrap: 'nowrap' }}>
                     <h2>{featured.name}</h2>
-                    <Link to={`/explore?category=${featured.category}`} aria-label={`Explore more ${featured.category}`} className="btn ghost icon"><ArrowUpRight size={20} aria-hidden /></Link>
+                    <Link to={`/explore?category=${featured.category}`} aria-label={t(`pcat.${featured.category}`)} className="btn ghost icon"><ArrowUpRight size={20} aria-hidden /></Link>
                   </div>
-                  <span className="eyebrow">{featured.category} · {featured.area}</span>
+                  <span className="eyebrow">{t(`pcat.${featured.category}`)} · {featured.area}</span>
                   <p className="small">{featured.summary}</p>
                   <div className="stats">
-                    <div><strong>{'₹'.repeat(featured.price_level)}</strong><span className="tiny muted">Price level (demo)</span></div>
-                    <div><strong><Star size={16} aria-hidden /> {featured.rating ?? 'n/a'}</strong><span className="tiny muted">{featured.review_count?.toLocaleString() ?? 0} reviews (demo)</span></div>
+                    <div><strong>{'₹'.repeat(featured.price_level)}</strong><span className="tiny muted">{t('home.priceDemo')}</span></div>
+                    <div><strong><Star size={16} aria-hidden /> {featured.rating ?? 'n/a'}</strong><span className="tiny muted">{t('home.reviewsDemo', { n: featured.review_count?.toLocaleString() ?? 0 })}</span></div>
                   </div>
                   <div className="row" style={{ gap: 8 }}>
-                    <Link className="btn sm primary" to="/safety">Plan a route</Link>
-                    <a className="btn sm" href={placeUrl(featured.name, featured.lat, featured.lng)} target="_blank" rel="noopener noreferrer">Google Maps ↗</a>
-                    <a className="btn sm ghost" href={streetViewUrl(featured.lat, featured.lng)} target="_blank" rel="noopener noreferrer">Street View</a>
+                    <Link className="btn sm primary" to="/safety">{t('home.planRoute')}</Link>
+                    <a className="btn sm" href={placeUrl(featured.name, featured.lat, featured.lng)} target="_blank" rel="noopener noreferrer">{t('gm.open')} ↗</a>
+                    <a className="btn sm ghost" href={streetViewUrl(featured.lat, featured.lng)} target="_blank" rel="noopener noreferrer">{t('gm.street')}</a>
                   </div>
                 </div>
               </motion.article>
             )}
 
-            <div className="tabs" role="group" aria-label="Map layer">
-              <button className="chip" aria-pressed={layer === 'places'} onClick={() => setLayer('places')}>Places ({places.length})</button>
-              <button className="chip" aria-pressed={layer === 'reports'} onClick={() => setLayer('reports')}>City reports ({reports.length})</button>
-              <button className="chip" aria-pressed={layer === 'corridors'} onClick={() => setLayer('corridors')}>Accident corridors ({zoneCount})</button>
-              <Link className="chip" to="/safety">Safe routes <ArrowRight size={13} aria-hidden /></Link>
+            <div className="tabs" role="group" aria-label={t('home.layer')}>
+              <button className="chip" aria-pressed={layer === 'places'} onClick={() => setLayer('places')}>{t('home.tab.places', { n: places.length })}</button>
+              <button className="chip" aria-pressed={layer === 'reports'} onClick={() => setLayer('reports')}>{t('home.tab.reports', { n: reports.length })}</button>
+              <button className="chip" aria-pressed={layer === 'corridors'} onClick={() => setLayer('corridors')}>{t('home.tab.corridors', { n: zoneCount })}</button>
+              <button className="chip utsav-chip" aria-pressed={layer === 'festival'} onClick={() => setLayer('festival')}>{t('home.tab.festival')}</button>
+              <Link className="chip" to="/safety">{t('home.tab.routes')} <ArrowRight size={13} aria-hidden /></Link>
             </div>
 
             <div className="hero-map">
@@ -249,19 +250,25 @@ export function HomePage() {
                   places={layer === 'places' ? places : []}
                   reports={layer === 'reports' ? reports : []}
                   showZones={layer === 'corridors'}
-                  focus={focus}
-                  label="Pune map"
+                  trail={layer === 'festival' ? trail : []}
+                  fitTo={layer === 'festival' ? trail.map((s) => [s.lat, s.lng] as [number, number]) : null}
+                  focus={layer === 'festival' ? null : focus}
+                  label={t('exp.mapLabel')}
                   onPlaceSelect={feature}
                 />
               )}
+              {layer === 'festival' && (
+                <div className="float-panel br glass" style={{ maxWidth: 320 }}>
+                  <strong lang="mr" className="marathi" style={{ fontSize: 20, color: '#FF7A00' }}>गणपती बाप्पा मोरया!</strong>
+                  <ol className="tiny" style={{ margin: '6px 0', paddingLeft: 18 }} lang="mr">
+                    {trail.map((s) => <li key={s.order}>{s.name_mr}</li>)}
+                  </ol>
+                  <span className="tiny muted">{t('utsav.panel', { km: trailKm.toFixed(1) })}</span>
+                </div>
+              )}
               {layer === 'reports' && recent[0] && (
-                <button
-                  type="button"
-                  className="float-panel br glass"
-                  style={{ textAlign: 'left', cursor: 'pointer', color: 'inherit' }}
-                  onClick={() => navigate(`/safety?report=${recent[0].id}`)}
-                >
-                  <div className="row between"><span className="eyebrow">Latest signal · {recent[0].age}</span><TrustBadge label={recent[0].trust_label} /></div>
+                <button type="button" className="float-panel br glass" style={{ textAlign: 'left', cursor: 'pointer', color: 'inherit' }} onClick={() => navigate(`/safety?report=${recent[0].id}`)}>
+                  <div className="row between"><span className="eyebrow">{t('home.latest', { age: recent[0].age })}</span><TrustBadge label={recent[0].trust_label} /></div>
                   <div style={{ marginTop: 6, fontWeight: 500, fontSize: 14 }}>{recent[0].ai_summary ?? recent[0].description}</div>
                   <div className="trust-meter" style={{ marginTop: 8 }}><i style={{ width: `${recent[0].trust_score}%` }} /></div>
                 </button>
@@ -277,45 +284,53 @@ export function HomePage() {
         <section className="section" aria-labelledby="pillars-title">
           <div className="section-head">
             <div>
-              <span className="eyebrow">Five lenses on one city</span>
-              <h2 id="pillars-title">Everything the chaos hides.</h2>
+              <span className="eyebrow">{t('home.lenses')}</span>
+              <h2 id="pillars-title">{t('home.chaos')}</h2>
             </div>
           </div>
           <div className="pillars">
-            {PILLARS.map(({ to, title, text, Icon, bg }) => (
-              <Link key={title} to={to} className="pillar">
+            {PILLARS.map(({ to, n, Icon, bg }) => (
+              <Link key={n} to={to} className="pillar">
                 <span className="num"><ArrowUpRight size={20} aria-hidden /></span>
                 <span className="accent" style={{ background: bg }}><Icon size={18} aria-hidden /></span>
                 <div>
-                  <h3>{title}</h3>
-                  <p style={{ marginTop: 6 }}>{text}</p>
+                  <h3>{t(`home.p${n}.t`)}</h3>
+                  <p style={{ marginTop: 6 }}>{t(`home.p${n}.d`)}</p>
                 </div>
               </Link>
             ))}
           </div>
         </section>
 
+        <section className="section" aria-label={t('pati.k')}>
+          <div className="pati-wall compact">
+            <PuneriPati i={0} tilt={-2} />
+            <PuneriPati i={2} tilt={1.5} />
+            <PuneriPati i={4} tilt={-1} />
+          </div>
+        </section>
+
         <section className="section" aria-labelledby="reports-title">
           <div className="section-head">
             <div>
-              <span className="eyebrow">Community signals</span>
-              <h2 id="reports-title">What people report, and how much to trust it.</h2>
+              <span className="eyebrow">{t('home.signals')}</span>
+              <h2 id="reports-title">{t('home.signalsTitle')}</h2>
             </div>
-            <Link to="/report" className="btn primary">Report an issue</Link>
+            <Link to="/report" className="btn primary">{t('home.reportBtn')}</Link>
           </div>
           <div className="report-list">
             {recent.map((r) => (
               <button key={r.id} className="report-row" onClick={() => navigate(`/safety?report=${r.id}`)}>
                 <span className={`sev${r.severity >= 3 ? ' s3' : ''}${r.source === 'official' ? ' official' : ''}`} aria-hidden />
                 <span>
-                  <h4>{r.category[0].toUpperCase() + r.category.slice(1)} <span className="muted" style={{ fontWeight: 400 }}>· {r.age}</span></h4>
+                  <h4>{t(`cat.${r.category}`)} <span className="muted" style={{ fontWeight: 400 }}>· {r.age}</span></h4>
                   <p>{r.ai_summary ?? r.description}</p>
-                  <span className="tiny muted">Trust {r.trust_score}/100{r.demo ? ' · demo record' : ''}</span>
+                  <span className="tiny muted">{t('common.trust', { n: r.trust_score })}{r.demo ? ` · ${t('common.demo')}` : ''}</span>
                 </span>
                 <TrustBadge label={r.trust_label} />
               </button>
             ))}
-            {!recent.length && <div className="empty">No reports yet.</div>}
+            {!recent.length && <div className="empty">{t('common.noReports')}</div>}
           </div>
         </section>
       </div>

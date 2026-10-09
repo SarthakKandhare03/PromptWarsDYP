@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react'
 import L from 'leaflet'
 import { Circle, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
-import type { Hotspot, Place, PlaceCategory, Report, ScoredRoute } from '../types'
+import type { Hotspot, Place, PlaceCategory, Report, ScoredRoute, TrailStop } from '../types'
 import { useApp } from '../state/AppState'
 import { TrustBadge } from './TrustBadge'
 import { GoogleCityMap } from './GoogleCityMap'
@@ -55,6 +55,7 @@ export interface CityMapProps {
   label?: string
   onPlaceSelect?: (p: Place) => void
   hotspots?: Hotspot[]
+  trail?: TrailStop[]
 }
 
 function ClickPicker({ onPick }: { onPick: (latlng: [number, number]) => void }) {
@@ -89,7 +90,7 @@ export function CityMap(props: CityMapProps) {
 }
 
 function LeafletCityMap({
-  places = [], reports = [], routes = [], selectedRouteId, onRouteSelect, showZones = false, hotspots = [],
+  places = [], reports = [], routes = [], selectedRouteId, onRouteSelect, showZones = false, hotspots = [], trail = [],
   picked, onPick, focus, fitTo, label = 'Interactive map of Pune', onPlaceSelect,
 }: CityMapProps) {
   const { city, highlight } = useApp()
@@ -126,6 +127,20 @@ function LeafletCityMap({
             />
           )
         })}
+
+        {trail.length > 1 && (
+          <Polyline positions={trail.map((s) => [s.lat, s.lng] as [number, number])}
+            pathOptions={{ color: '#FF7A00', weight: 5, opacity: 0.9, dashArray: '2 10', lineCap: 'round', className: 'route-line' }} />
+        )}
+        {trail.map((s) => (
+          <Marker key={s.order} position={[s.lat, s.lng]} title={s.name}
+            icon={L.divIcon({ html: `<div class="trail-dot">${s.order}</div>`, className: '', iconSize: [30, 30], iconAnchor: [15, 15] })}>
+            <Popup>
+              <div className="popup-title" lang="mr">{s.name_mr}</div>
+              <div className="muted">{s.name}{s.order <= 5 ? ` · मानाचा गणपती #${s.order}` : ''}</div>
+            </Popup>
+          </Marker>
+        ))}
 
         {hotspots.map((h) => (
           <Circle

@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Loader2, MapPin, MessageCircle, Send, X } from 'lucide-react'
 import { api } from '../api'
 import { useApp } from '../state/AppState'
+import { useI18n } from '../i18n'
 import type { AssistantAnswer } from '../types'
 
 interface Msg {
@@ -12,27 +13,23 @@ interface Msg {
   meta?: Pick<AssistantAnswer, 'engine' | 'place_ids' | 'sources'>
 }
 
-const SUGGESTIONS = ['Misal under ₹150?', 'Evening heritage walk', 'Any waterlogging now?', 'Quiet cafe near Deccan']
-const GREETING: Msg = {
-  role: 'assistant',
-  text: 'नमस्कार! Ask me about places, food, heritage, or what people are reporting around Pune right now.',
-}
-const clean = (t: string) => t.replace(/\*\*(.+?)\*\*/g, '$1').replace(/^\s*[*-]\s+/gm, '• ')
+const SUGGESTIONS = ['chat.s1', 'chat.s2', 'chat.s3', 'chat.s4']
+const clean = (s: string) => s.replace(/\*\*(.+?)\*\*/g, '$1').replace(/^\s*[*-]\s+/gm, '• ')
+const engineKey = (e: AssistantAnswer['engine']) => (e === 'rules' ? 'engine.rules' : e === 'gemini' ? 'engine.gemini' : 'engine.maps')
 
-/** Floating city assistant (bottom-right). Multi-turn: recent turns are sent as context. */
+/** Floating city assistant (bottom-right). Multi-turn and answers in the selected UI language. */
 export function ChatWidget() {
   const { places, setHighlight, aiEnabled } = useApp()
+  const { t, lang } = useI18n()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
-  const [msgs, setMsgs] = useState<Msg[]>([GREETING])
+  const [msgs, setMsgs] = useState<Msg[]>([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    if (open) inputRef.current?.focus()
-  }, [open])
+  useEffect(() => { if (open) inputRef.current?.focus() }, [open])
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
   }, [msgs, busy])
@@ -40,16 +37,16 @@ export function ChatWidget() {
   async function send(text: string) {
     const q = text.trim()
     if (q.length < 2 || busy) return
-    const history = msgs.filter((m) => m !== GREETING).map(({ role, text: t }) => ({ role, text: t }))
+    const history = msgs.map(({ role, text: m }) => ({ role, text: m }))
     setMsgs((m) => [...m, { role: 'user', text: q }])
     setInput('')
     setBusy(true)
     try {
-      const res = await api.assistant(q, undefined, history)
+      const res = await api.assistant(q, undefined, history, lang)
       setMsgs((m) => [...m, { role: 'assistant', text: clean(res.answer), meta: res }])
       if (res.place_ids.length) setHighlight(res.place_ids)
     } catch (e) {
-      setMsgs((m) => [...m, { role: 'assistant', text: e instanceof Error ? e.message : 'Something went wrong. Try again.' }])
+      setMsgs((m) => [...m, { role: 'assistant', text: e instanceof Error ? e.message : t('chat.error') }])
     } finally {
       setBusy(false)
     }
@@ -67,7 +64,7 @@ export function ChatWidget() {
           <motion.section
             className="chat-panel"
             role="dialog"
-            aria-label="पुण्यात काय? city assistant"
+            aria-label="पुण्यात काय?"
             initial={{ opacity: 0, y: 16, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.98 }}
@@ -76,15 +73,14 @@ export function ChatWidget() {
           >
             <header className="chat-head">
               <div>
-                <strong className="marathi">पुण्यात काय?</strong>
-                <span className="tiny" style={{ color: '#bdbdbd', display: 'block' }}>
-                  {aiEnabled ? 'Gemini city assistant' : 'Rule-based assistant (no AI key)'}
-                </span>
+                <strong className="marathi" lang="mr">पुण्यात काय?</strong>
+                <span className="tiny" style={{ color: '#bdbdbd', display: 'block' }}>{t(aiEnabled ? 'chat.sub' : 'chat.subRules')}</span>
               </div>
-              <button className="btn icon ghost" style={{ color: '#fff' }} onClick={() => setOpen(false)} aria-label="Close assistant"><X size={18} aria-hidden /></button>
+              <button className="btn icon ghost" style={{ color: '#fff' }} onClick={() => setOpen(false)} aria-label={t('chat.close')}><X size={18} aria-hidden /></button>
             </header>
 
             <div className="chat-list" ref={listRef} aria-live="polite">
+              <div className="chat-msg assistant"><p>{t('chat.greeting')}</p></div>
               {msgs.map((m, i) => (
                 <div key={i} className={`chat-msg ${m.role}`}>
                   <p>{m.text}</p>
@@ -101,29 +97,25 @@ export function ChatWidget() {
                       })}
                     </div>
                   )}
-                  {m.meta && (
-                    <span className="tiny muted" style={{ display: 'block', marginTop: 6 }}>
-                      {m.meta.engine === 'rules' ? 'Rule-based' : m.meta.engine === 'gemini' ? 'Gemini · Pune dataset' : 'Gemini · Google Maps grounded'}
-                    </span>
-                  )}
+                  {m.meta && <span className="tiny muted" style={{ display: 'block', marginTop: 6 }}>{t(engineKey(m.meta.engine))}</span>}
                 </div>
               ))}
-              {busy && <div className="chat-msg assistant"><Loader2 size={16} className="spin" aria-label="Thinking" /></div>}
+              {busy && <div className="chat-msg assistant"><Loader2 size={16} className="spin" aria-label={t('chat.thinking')} /></div>}
             </div>
 
-            {msgs.length <= 1 && (
+            {msgs.length === 0 && (
               <div className="chips" style={{ padding: '0 14px 10px', gap: 6 }}>
                 {SUGGESTIONS.map((s) => (
-                  <button key={s} className="chip" style={{ fontSize: 12, padding: '5px 10px' }} onClick={() => void send(s)}>{s}</button>
+                  <button key={s} className="chip" style={{ fontSize: 12, padding: '5px 10px' }} onClick={() => void send(t(s))}>{t(s)}</button>
                 ))}
               </div>
             )}
 
             <form className="chat-form" onSubmit={onSubmit}>
-              <label htmlFor="chat-input" className="sr-only">Message</label>
+              <label htmlFor="chat-input" className="sr-only">{t('chat.msg')}</label>
               <input id="chat-input" ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about Pune…" maxLength={500} autoComplete="off" />
-              <button className="btn primary icon" type="submit" disabled={busy || input.trim().length < 2} aria-label="Send">
+                placeholder={t('chat.ph')} maxLength={500} autoComplete="off" />
+              <button className="btn primary icon" type="submit" disabled={busy || input.trim().length < 2} aria-label={t('chat.send')}>
                 <Send size={16} aria-hidden />
               </button>
             </form>
@@ -131,9 +123,9 @@ export function ChatWidget() {
         )}
       </AnimatePresence>
 
-      <button className="chat-fab" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={open ? 'Close city assistant' : 'Open city assistant'}>
+      <button className="chat-fab" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={t(open ? 'chat.close' : 'chat.open')}>
         {open ? <X size={22} aria-hidden /> : <MessageCircle size={22} aria-hidden />}
-        {!open && <span className="marathi">काय?</span>}
+        {!open && <span className="marathi" lang="mr">काय?</span>}
       </button>
     </>
   )
