@@ -54,7 +54,9 @@ def test_reports_have_trust_and_age(client):
 
 
 def test_create_report_validates_and_scores(client):
-    res = client.post("/api/reports", data={"category": "pothole", "description": "Deep pothole near signal", "lat": 18.52, "lng": 73.85})
+    res = client.post(
+        "/api/reports", data={"category": "pothole", "description": "Deep pothole near signal", "lat": 18.52, "lng": 73.85}
+    )
     assert res.status_code == 201
     body = res.json()
     assert body["trust_label"] in {"Unverified", "Partially verified", "Corroborated"}
@@ -82,9 +84,14 @@ def test_create_report_rejects_short_description(client):
 
 
 def test_routes_are_scored_and_labelled(client):
-    res = client.post("/api/routes", json={
-        "origin": {"lat": 18.5208, "lng": 73.8411}, "destination": {"lat": 18.5193, "lng": 73.8583}, "hour": 22,
-    })
+    res = client.post(
+        "/api/routes",
+        json={
+            "origin": {"lat": 18.5208, "lng": 73.8411},
+            "destination": {"lat": 18.5193, "lng": 73.8583},
+            "hour": 22,
+        },
+    )
     assert res.status_code == 200
     body = res.json()
     assert body["is_night"] is True
@@ -150,7 +157,9 @@ def test_request_id_hsts_and_cache_headers(client):
 
 
 def test_oversized_body_rejected_before_parsing(client):
-    res = client.post("/api/assistant", content=b"x", headers={"Content-Length": str(7 * 1024 * 1024), "Content-Type": "application/json"})
+    res = client.post(
+        "/api/assistant", content=b"x", headers={"Content-Length": str(7 * 1024 * 1024), "Content-Type": "application/json"}
+    )
     assert res.status_code == 413
 
 

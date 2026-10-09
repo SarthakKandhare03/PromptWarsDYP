@@ -1,0 +1,27 @@
+[project]
+name = "punyat-kay-api"
+version = "1.0.0"
+description = "पुण्यात काय? FastAPI backend: trust engine, safety scoring, learning, Gemini."
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 130
+target-version = "py311"
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, isort, bugbear, pyupgrade, bandit-security subset
+select = ["E", "F", "W", "I", "B", "UP", "S"]
+ignore = [
+  "S101",  # asserts are the pytest idiom
+  "S311",  # random is only used to generate labelled demo history, not for security
+  "B008",  # FastAPI dependency/File()/Form() defaults are idiomatic
+  "E501",  # line length is owned by `ruff format`
+  "UP042", # str+Enum kept for Pydantic/OpenAPI compatibility
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S105", "S106"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q -p no:warnings"

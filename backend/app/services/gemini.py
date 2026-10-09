@@ -129,7 +129,9 @@ async def analyze_report(
         if blob:
             parts.append(types.Part.from_bytes(data=blob[0], mime_type=blob[1]))
     config = types.GenerateContentConfig(
-        response_mime_type="application/json", response_schema=ReportAnalysis, temperature=0.1,
+        response_mime_type="application/json",
+        response_schema=ReportAnalysis,
+        temperature=0.1,
     )
     resp = await _generate(parts, config)
     if resp is None:
@@ -147,7 +149,9 @@ async def explain_routes(hour: int, routes_summary: list[dict], lang: str = "en"
     if (hit := _cache_get(key)) is not None:
         return hit
     period = "night" if hour >= 20 or hour < 6 else "day"
-    resp = await _generate(ROUTE_PROMPT.format(language=LANG_NAMES.get(lang, "English"), hour=hour, period=period, routes=payload))
+    resp = await _generate(
+        ROUTE_PROMPT.format(language=LANG_NAMES.get(lang, "English"), hour=hour, period=period, routes=payload)
+    )
     text = (resp.text or "").strip() if resp is not None else ""
     if not text:
         return None
@@ -156,7 +160,12 @@ async def explain_routes(hour: int, routes_summary: list[dict], lang: str = "en"
 
 
 async def ask_assistant(
-    query: str, location: tuple[float, float], reports_brief: str, places_brief: str, history: str = "", lang: str = "en",
+    query: str,
+    location: tuple[float, float],
+    reports_brief: str,
+    places_brief: str,
+    history: str = "",
+    lang: str = "en",
 ) -> dict | None:
     """Gemini grounded with Google Maps. If Maps grounding is unavailable (e.g. quota), Gemini
     answers from the CityPulse dataset instead. Returns {answer, sources, engine}."""
@@ -177,13 +186,20 @@ async def ask_assistant(
     engine = "gemini+maps"
     resp = None
     if time.monotonic() >= _maps_retry_at:
-        resp = await _generate(ASSISTANT_PROMPT.format(language=language, reports=reports_brief, context="", history=history or "none", query=query), maps_config)
+        resp = await _generate(
+            ASSISTANT_PROMPT.format(language=language, reports=reports_brief, context="", history=history or "none", query=query),
+            maps_config,
+        )
         if resp is None:
             _maps_retry_at = time.monotonic() + MAPS_BACKOFF_S  # e.g. grounding quota exhausted
     if resp is None or not (resp.text or "").strip():
         engine = "gemini"
         prompt = ASSISTANT_PROMPT.format(
-            language=language, reports=reports_brief, context=DATASET_CONTEXT.format(places=places_brief), history=history or "none", query=query,
+            language=language,
+            reports=reports_brief,
+            context=DATASET_CONTEXT.format(places=places_brief),
+            history=history or "none",
+            query=query,
         )
         resp = await _generate(prompt, types.GenerateContentConfig(temperature=0.3))
     if resp is None or not (resp.text or "").strip():

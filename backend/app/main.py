@@ -41,7 +41,10 @@ AUDIO_TYPES = {"audio/webm", "audio/ogg", "audio/mpeg", "audio/wav", "audio/mp4"
 app = FastAPI(title="CityPulse AI", version="1.0.0", docs_url="/api/docs", openapi_url="/api/openapi.json")
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 app.add_middleware(
-    CORSMiddleware, allow_origins=list(settings.allowed_origins), allow_methods=["GET", "POST"], allow_headers=["Content-Type"],
+    CORSMiddleware,
+    allow_origins=list(settings.allowed_origins),
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 _hits: dict[str, deque[float]] = defaultdict(deque)
@@ -58,6 +61,7 @@ def _prune_rate_limits(now: float) -> None:
     _last_prune = now
     for ip in [ip for ip, w in _hits.items() if not w or now - w[-1] > 60]:
         del _hits[ip]
+
 
 GOOGLE_MAPS_SRC = "https://maps.googleapis.com https://maps.gstatic.com"
 CSP = (
@@ -86,8 +90,11 @@ async def security_and_rate_limit(request: Request, call_next):
         while window and now - window[0] > 60:
             window.popleft()
         if len(window) >= settings.rate_limit_per_minute:
-            return JSONResponse({"detail": "Too many requests, slow down."}, status_code=429,
-                                headers={"Retry-After": "60", "X-Request-ID": request_id})
+            return JSONResponse(
+                {"detail": "Too many requests, slow down."},
+                status_code=429,
+                headers={"Retry-After": "60", "X-Request-ID": request_id},
+            )
         window.append(now)
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
@@ -100,7 +107,9 @@ async def security_and_rate_limit(request: Request, call_next):
     elif path.startswith("/api/"):
         response.headers.setdefault("Cache-Control", "no-store")
     if path.startswith("/api/"):
-        log.info("%s %s %s %.0fms id=%s", request.method, path, response.status_code, (time.monotonic() - started) * 1000, request_id)
+        log.info(
+            "%s %s %s %.0fms id=%s", request.method, path, response.status_code, (time.monotonic() - started) * 1000, request_id
+        )
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -110,6 +119,7 @@ async def security_and_rate_limit(request: Request, call_next):
 
 
 # ---------- read endpoints ----------
+
 
 @app.get("/api/health")
 async def health():
@@ -200,8 +210,13 @@ async def pulse():
         by_cat[r.category.value] += 1
     trusted = [r for r in last_24h if r.trust_score >= 70]
     # Chaos index: trusted, severe, fresh signals. Explained, bounded, never "safe".
-    chaos = min(100, round(sum(r.severity * r.trust_score / 100 * 12 for r in last_24h)
-                           + (15 if (weather.get("next_6h_rain_mm") or 0) >= 2 else 0)))
+    chaos = min(
+        100,
+        round(
+            sum(r.severity * r.trust_score / 100 * 12 for r in last_24h)
+            + (15 if (weather.get("next_6h_rain_mm") or 0) >= 2 else 0)
+        ),
+    )
     return {
         "weather": weather,
         "reports_24h": len(last_24h),
@@ -215,6 +230,7 @@ async def pulse():
 
 
 # ---------- write / compute endpoints ----------
+
 
 @app.post("/api/reports", status_code=201)
 async def create_report(
@@ -283,12 +299,25 @@ async def routes(req: RouteRequest):
     scored: list[ScoredRoute] = []
     for i, r in enumerate(raw):
         score, confidence, factors = score_route(
-            r["geometry"], req.hour, reps, ACCIDENT_ZONES, SUPPORT_POINTS, now, hotspots=store.model,
+            r["geometry"],
+            req.hour,
+            reps,
+            ACCIDENT_ZONES,
+            SUPPORT_POINTS,
+            now,
+            hotspots=store.model,
         )
-        scored.append(ScoredRoute(
-            id=f"route-{i}", geometry=r["geometry"], distance_m=round(r["distance_m"]), duration_s=round(r["duration_s"]),
-            safety_score=score, confidence=confidence, factors=factors,
-        ))
+        scored.append(
+            ScoredRoute(
+                id=f"route-{i}",
+                geometry=r["geometry"],
+                distance_m=round(r["distance_m"]),
+                duration_s=round(r["duration_s"]),
+                safety_score=score,
+                confidence=confidence,
+                factors=factors,
+            )
+        )
     min(scored, key=lambda s: s.duration_s).is_fastest = True
     rated = [s for s in scored if s.safety_score is not None]
     if rated:
@@ -296,8 +325,11 @@ async def routes(req: RouteRequest):
 
     summary = [
         {
-            "name": f"Route {chr(65 + i)}", "minutes": round(s.duration_s / 60), "km": round(s.distance_m / 1000, 1),
-            "safety_score": s.safety_score, "risks": [f.label for f in s.factors if f.kind == "risk" and f.impact < 0],
+            "name": f"Route {chr(65 + i)}",
+            "minutes": round(s.duration_s / 60),
+            "km": round(s.distance_m / 1000, 1),
+            "safety_score": s.safety_score,
+            "risks": [f.label for f in s.factors if f.kind == "risk" and f.impact < 0],
         }
         for i, s in enumerate(scored)
     ]
@@ -325,9 +357,11 @@ def _rules_explanation(summary: list[dict]) -> str:
         return f"{fastest['name']} is both the fastest ({fastest['minutes']} min) and has the fewest known risks."
     extra = safest["minutes"] - fastest["minutes"]
     gap = safest["safety_score"] - (fastest["safety_score"] or 0)
-    return (f"{safest['name']} takes about {extra} min longer than {fastest['name']} and scores {gap} point(s) "
-            f"higher on known risks ({safest['safety_score']} vs {fastest['safety_score']}). "
-            "Scores reflect only the data we have. Street lighting is not yet included.")
+    return (
+        f"{safest['name']} takes about {extra} min longer than {fastest['name']} and scores {gap} point(s) "
+        f"higher on known risks ({safest['safety_score']} vs {fastest['safety_score']}). "
+        "Scores reflect only the data we have. Street lighting is not yet included."
+    )
 
 
 @app.post("/api/compare")
@@ -354,16 +388,25 @@ async def assistant(req: AssistantRequest):
         if ai:
             if ai["engine"] == "gemini":
                 ai["sources"] = [{"title": "Pune dataset (demo values)", "uri": ""}]
-            return {**ai, "place_ids": match_place_ids(ai["answer"], PLACES), "report_ids": [],
-                    "answered_at": utcnow().isoformat()}
+            return {
+                **ai,
+                "place_ids": match_place_ids(ai["answer"], PLACES),
+                "report_ids": [],
+                "answered_at": utcnow().isoformat(),
+            }
     fallback = rule_based_answer(req.query, PLACES, reps)
-    return {**fallback, "sources": [{"title": "Pune demo dataset", "uri": ""}],
-            "engine": "rules", "answered_at": utcnow().isoformat()}
+    return {
+        **fallback,
+        "sources": [{"title": "Pune demo dataset", "uri": ""}],
+        "engine": "rules",
+        "answered_at": utcnow().isoformat(),
+    }
 
 
 # ---------- frontend (built SPA) ----------
 
 if settings.static_dir.is_dir():
+
     @app.get("/{path:path}", include_in_schema=False)
     async def spa(path: str):
         if path.startswith("api/"):

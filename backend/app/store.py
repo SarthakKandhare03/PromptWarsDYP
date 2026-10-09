@@ -7,7 +7,7 @@ reputation -> trust scores -> hotspot model fit.
 from __future__ import annotations
 
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from app.data.pune import ACCIDENT_ZONES, seed_history, seed_reports
 from app.db import Database
@@ -21,7 +21,7 @@ RESOLVE_THRESHOLD = 2
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class ReportStore:

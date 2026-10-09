@@ -1,6 +1,6 @@
 """Unit tests for the pure scoring engines."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -11,15 +11,17 @@ from app.services.ranking import bayesian_rating, compare, dimension_scores
 from app.services.safety import decay, is_night, score_route
 from app.services.trust import TrustContext, label_for, score_report
 
-NOW = datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 9, 12, 0, tzinfo=UTC)
 
 
 def make_report(id="r1", cat=ReportCategory.waterlogging, lat=18.5010, lng=73.8640, hours_ago=0.5, **kw) -> Report:
-    return Report(id=id, category=cat, description="test report", lat=lat, lng=lng,
-                  created_at=NOW - timedelta(hours=hours_ago), **kw)
+    return Report(
+        id=id, category=cat, description="test report", lat=lat, lng=lng, created_at=NOW - timedelta(hours=hours_ago), **kw
+    )
 
 
 # ---------- geo ----------
+
 
 def test_haversine_known_distance():
     # Shaniwar Wada -> Aga Khan Palace is roughly 6 km.
@@ -40,6 +42,7 @@ def test_sample_path_handles_degenerate_input():
 
 
 # ---------- trust engine ----------
+
 
 def test_single_text_report_is_unverified():
     r = make_report()
@@ -102,6 +105,7 @@ def test_trust_is_capped_at_100():
 
 # ---------- safety engine ----------
 
+
 @pytest.mark.parametrize("hour,night", [(22, True), (3, True), (6, False), (14, False), (19, False)])
 def test_is_night(hour, night):
     assert is_night(hour) is night
@@ -146,6 +150,7 @@ def test_missing_lighting_data_is_disclosed():
 
 
 # ---------- ranking ----------
+
 
 def test_bayesian_rating_pulls_thin_reviews_toward_prior():
     thin = bayesian_rating(4.9, 12)

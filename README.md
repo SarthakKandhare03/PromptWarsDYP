@@ -2,6 +2,18 @@
 
 **Live demo:** https://punyat-kay-knd5p2vgxa-el.a.run.app (Google Cloud Run, asia-south1)
 
+## Evaluation at a glance
+| Criterion | Evidence in this repo |
+|---|---|
+| **Problem statement alignment** | [`docs/PROBLEM_ALIGNMENT.md`](docs/PROBLEM_ALIGNMENT.md) maps every line of the brief (5 pillars, *verified actionable insights*, AI/ML, NLP, maps, APIs, analytics) to code |
+| **Code quality** | Typed end to end (Pydantic + strict TypeScript); pure engines separated from I/O (`backend/app/services/*`); **ruff** lint + format (incl. bandit `S` rules) and **oxlint**, both clean; [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
+| **Security** | [`SECURITY.md`](SECURITY.md): Secret Manager, CSP/HSTS, validation, upload allow-lists, rate limiting, body-size guard, prompt-injection fencing, non-root container |
+| **Efficiency** | One Gemini call per request with model fallback + LRU cache + timeouts; 10-min weather cache; GZip; lazy-loaded routes (148 KB gzipped entry); immutable hashed assets; warm Cloud Run instance |
+| **Testing** | **62 pytest** (engines, learning, API, security headers, rate limits) · **11 Vitest** (URL builders, geo, translation completeness/placeholder parity) · **46-check e2e** on phone + desktop ([`e2e/smoke.mjs`](e2e/smoke.mjs)). pytest + Vitest + lint + Docker build run in CI; e2e runs locally and against the live site (46/46 passing) |
+| **Accessibility** | Semantic landmarks, skip link, labelled controls (verified by the e2e audit), `aria-live`, keyboard support, focus rings, AA contrast in light/dark, reduced motion, captions for audio, voice input/read-aloud, 3 languages, 16 px mobile inputs |
+| **Google services** | Gemini (multimodal, structured output, Maps grounding, TTS), Google Maps URLs + optional Maps JS, **Cloud Run**, **Cloud Build**, **Secret Manager**, Google Fonts |
+
+
 **Feel the city. Read the signals. Move smarter.**
 
 A context-aware city intelligence platform for **Pune**, built for *PromptWars x BRAIN DYPCOEI* on the problem statement **"City Life: Exploring, Experiencing & Navigating the Chaos We Call Home."**
@@ -87,7 +99,7 @@ Single container → Google Cloud Run
   - one Gemini call per request, with an LRU cache and a hard timeout
   - weather cached for 10 min
   - GZip, lazy-loaded routes, cached marker icons, no image assets
-- **Testing**: **62 pytest tests** plus a **46-check end-to-end suite** (`e2e/smoke.mjs`, real Chrome on a 390 px phone and 1440 px desktop) covering:
+- **Testing**: **62 pytest tests**, **11 Vitest unit tests** and a **46-check end-to-end suite** (`e2e/smoke.mjs`, real Chrome on a 390 px phone and 1440 px desktop; unit suites run in CI) covering:
   - geo maths
   - trust scoring (corroboration, weather and corridor cross-checks, caps)
   - night weighting and "insufficient data" in route safety
@@ -116,7 +128,8 @@ uvicorn app.main:app --reload --port 8000
 cd frontend && npm install && npm run dev        # http://localhost:5173
 
 # Tests
-cd backend && python -m pytest -q
+cd backend && python -m pytest && ruff check .
+cd frontend && npm test
 ```
 
 ## End-to-end tests (mobile + desktop)

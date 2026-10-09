@@ -23,7 +23,11 @@ HISTORY_HALF_LIFE_DAYS = 14.0
 HOTSPOT_MIN_WEIGHT = 0.6
 HOTSPOT_MIN_REPORTS = 2  # one report is an incident, not a pattern
 BANDS: tuple[tuple[int, int, str], ...] = (
-    (0, 6, "late night"), (6, 12, "morning"), (12, 17, "afternoon"), (17, 21, "evening"), (21, 24, "night"),
+    (0, 6, "late night"),
+    (6, 12, "morning"),
+    (12, 17, "afternoon"),
+    (17, 21, "evening"),
+    (21, 24, "night"),
 )
 
 Cell = tuple[int, int]
@@ -47,6 +51,7 @@ def cell_center(cell: Cell) -> tuple[float, float]:
 
 # ---------- reporter reputation ----------
 
+
 def reporter_reputation(reports: Iterable[Report]) -> dict[str, tuple[float, int]]:
     """reporter_id -> (reputation 0-1, number of judged reports).
 
@@ -68,6 +73,7 @@ def reporter_reputation(reports: Iterable[Report]) -> dict[str, tuple[float, int
 
 
 # ---------- hotspot model ----------
+
 
 @dataclass
 class Hotspot:
@@ -118,8 +124,13 @@ class HotspotModel:
     def hotspots(self, hour: int | None = None, limit: int = 20) -> list[Hotspot]:
         band = band_for(hour) if hour is not None else None
         items = [
-            Hotspot(*cell_center(cell), band=b, weight=round(w, 2), reports=self.counts[(cell, b)],
-                    top_category=self.categories[(cell, b)].most_common(1)[0][0])
+            Hotspot(
+                *cell_center(cell),
+                band=b,
+                weight=round(w, 2),
+                reports=self.counts[(cell, b)],
+                top_category=self.categories[(cell, b)].most_common(1)[0][0],
+            )
             for (cell, b), w in self.weights.items()
             if w >= HOTSPOT_MIN_WEIGHT and self.counts[(cell, b)] >= HOTSPOT_MIN_REPORTS and (band is None or b == band)
         ]
@@ -129,7 +140,9 @@ class HotspotModel:
         return {
             "samples": self.samples,
             "cells": len({c for c, _ in self.weights}),
-            "hotspots": sum(1 for k, w in self.weights.items() if w >= HOTSPOT_MIN_WEIGHT and self.counts[k] >= HOTSPOT_MIN_REPORTS),
+            "hotspots": sum(
+                1 for k, w in self.weights.items() if w >= HOTSPOT_MIN_WEIGHT and self.counts[k] >= HOTSPOT_MIN_REPORTS
+            ),
             "trained_at": self.trained_at.isoformat() if self.trained_at else None,
             "half_life_days": HISTORY_HALF_LIFE_DAYS,
         }

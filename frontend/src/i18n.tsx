@@ -375,6 +375,10 @@ const D: Record<string, [string, string, string]> = {
   'chat.error': ['Something went wrong. Try again.', 'कुछ गड़बड़ हुई। फिर कोशिश करें।', 'काहीतरी चुकलं. पुन्हा प्रयत्न करा.'],
 }
 
+/** Exposed for tests (completeness + placeholder parity). */
+// eslint-disable-next-line react-refresh/only-export-components
+export const TRANSLATIONS: Readonly<Record<string, readonly [string, string, string]>> = D
+
 const IDX: Record<Lang, number> = { en: 0, hi: 1, mr: 2 }
 export type TFn = (key: string, vars?: Record<string, string | number>) => string
 

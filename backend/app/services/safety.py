@@ -16,8 +16,8 @@ from collections.abc import Sequence
 from datetime import datetime
 
 from app.models import Report, RouteFactor
-from app.services.learning import HOTSPOT_MIN_REPORTS, HotspotModel, band_for, cell_for
 from app.services.geo import LatLng, haversine_m, sample_path
+from app.services.learning import HOTSPOT_MIN_REPORTS, HotspotModel, band_for, cell_for
 
 ZONE_RADIUS_M = 400.0
 REPORT_RADIUS_M = 250.0
@@ -74,10 +74,13 @@ def score_route(
             continue
         impact = rep.severity * 6 * weight * mult
         risk += impact
-        factors.append(RouteFactor(
-            label=f"{rep.category.value.title()} reported nearby ({rep.trust_label.lower()})",
-            impact=-round(impact, 1), kind="risk",
-        ))
+        factors.append(
+            RouteFactor(
+                label=f"{rep.category.value.title()} reported nearby ({rep.trust_label.lower()})",
+                impact=-round(impact, 1),
+                kind="risk",
+            )
+        )
 
     # Learned patterns: cells where issues recur at this time of day (from report history).
     if hotspots is not None:
@@ -91,31 +94,40 @@ def score_route(
             if w >= 0.6 and n >= HOTSPOT_MIN_REPORTS and top:
                 impact = min(10.0, 3.5 * w) * mult
                 risk += impact
-                factors.append(RouteFactor(
-                    label=f"Learned pattern: recurring {top} here in the {band_for(hour)} ({n} past reports)",
-                    impact=-round(impact, 1), kind="risk",
-                ))
+                factors.append(
+                    RouteFactor(
+                        label=f"Learned pattern: recurring {top} here in the {band_for(hour)} ({n} past reports)",
+                        impact=-round(impact, 1),
+                        kind="risk",
+                    )
+                )
 
     # Support: share of the route within reach of police or hospital.
-    covered = sum(
-        1 for s in samples if any(haversine_m(s, (lat, lng)) <= SUPPORT_RADIUS_M for _, _, lat, lng in support)
-    )
+    covered = sum(1 for s in samples if any(haversine_m(s, (lat, lng)) <= SUPPORT_RADIUS_M for _, _, lat, lng in support))
     coverage = covered / len(samples)
     support_bonus = round(10 * coverage, 1)
     if support_bonus > 0:
-        factors.append(RouteFactor(
-            label=f"{round(coverage * 100)}% of route within 800 m of police/hospital", impact=support_bonus, kind="support",
-        ))
+        factors.append(
+            RouteFactor(
+                label=f"{round(coverage * 100)}% of route within 800 m of police/hospital",
+                impact=support_bonus,
+                kind="support",
+            )
+        )
 
     if night:
         factors.append(RouteFactor(label="Night travel: risks weighted x1.4", impact=0, kind="risk"))
     factors.append(RouteFactor(label="Street-lighting data not available for scoring", impact=0, kind="missing"))
 
     # Data coverage: if nothing we know about is near the route, refuse to score.
-    known_points = [(lat, lng) for _, lat, lng in zones] + [(r.lat, r.lng) for r in reports] + [
-        (lat, lng) for _, _, lat, lng in support
-    ]
-    near = sum(1 for p in known_points if min(haversine_m(s, p) for s in samples[:: max(1, len(samples) // 20)]) <= DATA_COVERAGE_RADIUS_M)
+    known_points = (
+        [(lat, lng) for _, lat, lng in zones] + [(r.lat, r.lng) for r in reports] + [(lat, lng) for _, _, lat, lng in support]
+    )
+    near = sum(
+        1
+        for p in known_points
+        if min(haversine_m(s, p) for s in samples[:: max(1, len(samples) // 20)]) <= DATA_COVERAGE_RADIUS_M
+    )
     if near == 0:
         return None, "low", factors + [RouteFactor(label="No data near this route", impact=0, kind="missing")]
 

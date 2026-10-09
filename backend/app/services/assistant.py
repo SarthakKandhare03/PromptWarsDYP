@@ -34,7 +34,11 @@ def rule_based_answer(query: str, places: Sequence[Place], reports: Sequence[Rep
     if any(w in q for w in HAZARD_WORDS):
         trusted = [r for r in reports if r.trust_score >= 40][:5]
         if not trusted:
-            return {"answer": "No sufficiently verified reports right now. That does not mean an area is safe; data may be missing.", "place_ids": [], "report_ids": []}
+            return {
+                "answer": "No sufficiently verified reports right now. That does not mean an area is safe; data may be missing.",
+                "place_ids": [],
+                "report_ids": [],
+            }
         lines = [f"- {r.category.value.title()}: {r.description} ({r.trust_label})" for r in trusted]
         return {
             "answer": "Most trusted recent reports:\n" + "\n".join(lines),
@@ -58,7 +62,11 @@ def rule_based_answer(query: str, places: Sequence[Place], reports: Sequence[Rep
     pool = [p for p in places if (cap is None or p.price_level <= cap) and (not wants_access or p.wheelchair)]
     ranked = sorted((p for p in pool if score(p) > 0), key=lambda p: (-score(p), -(p.rating or 0)))[:5]
     if not ranked:
-        return {"answer": "I couldn't match that to places in the Pune demo dataset. Try 'heritage', 'street food under ₹200' or 'cafes in Camp'.", "place_ids": [], "report_ids": []}
+        return {
+            "answer": "I couldn't match that to places in the Pune demo dataset. Try 'heritage', 'street food under ₹200' or 'cafes in Camp'.",
+            "place_ids": [],
+            "report_ids": [],
+        }
     lines = [f"- {p.name} ({p.area}): {p.summary}" for p in ranked]
     return {"answer": "Here's what matches:\n" + "\n".join(lines), "place_ids": [p.id for p in ranked], "report_ids": []}
 

@@ -65,7 +65,8 @@ def score_report(report: Report, others: Iterable[Report], ctx: TrustContext) ->
         reasons.append(f"AI check: media matches description {round(report.ai_consistency * 100)}% (+{bonus})")
 
     corroborating = [
-        o for o in others
+        o
+        for o in others
         if o.id != report.id
         and o.category == report.category
         and abs(o.created_at - report.created_at) <= CORROBORATION_WINDOW

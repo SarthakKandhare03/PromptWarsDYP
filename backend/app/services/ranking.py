@@ -29,8 +29,7 @@ def dimension_scores(place: Place, reports: Sequence[Report]) -> dict[str, float
     """Each dimension normalised to 0-100, or None when data is missing."""
     bayes = bayesian_rating(place.rating, place.review_count)
     nearby = [
-        r for r in reports
-        if haversine_m((r.lat, r.lng), (place.lat, place.lng)) <= NEARBY_REPORT_M and r.trust_score >= 40
+        r for r in reports if haversine_m((r.lat, r.lng), (place.lat, place.lng)) <= NEARBY_REPORT_M and r.trust_score >= 40
     ]
     return {
         "affordability": round((4 - place.price_level) / 3 * 100, 1),
@@ -52,14 +51,16 @@ def compare(places: Sequence[Place], weights: CompareWeights, reports: Sequence[
         flags = []
         if p.review_count is not None and p.review_count < THIN_REVIEWS:
             flags.append(f"Only {p.review_count} reviews: rating adjusted toward city average")
-        results.append({
-            "place": p.model_dump(),
-            "dimensions": dims,
-            "missing": [k for k, v in dims.items() if v is None],
-            "weighted_score": overall,
-            "bayesian_rating": round(bayesian_rating(p.rating, p.review_count) or 0, 2) or None,
-            "flags": flags,
-        })
+        results.append(
+            {
+                "place": p.model_dump(),
+                "dimensions": dims,
+                "missing": [k for k, v in dims.items() if v is None],
+                "weighted_score": overall,
+                "bayesian_rating": round(bayesian_rating(p.rating, p.review_count) or 0, 2) or None,
+                "flags": flags,
+            }
+        )
     results.sort(key=lambda r: (r["weighted_score"] is None, -(r["weighted_score"] or 0)))
     for i, r in enumerate(results):
         r["rank"] = i + 1

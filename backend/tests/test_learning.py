@@ -1,6 +1,6 @@
 """Tests for the self-learning layer: reputation, hotspot model, votes."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,15 +12,25 @@ from app.models import Report, ReportCategory
 from app.services.learning import HotspotModel, band_for, reporter_reputation
 from app.services.safety import score_route
 
-NOW = datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 9, 12, 0, tzinfo=UTC)
 IST = timezone(timedelta(hours=5, minutes=30))
 
 
 def rep(id, reporter=None, conf=0, disp=0, lat=18.5012, lng=73.8638, ist_hour=18, days_ago=3, trust=60, sev=2):
-    when = (NOW.astimezone(IST) - timedelta(days=days_ago)).replace(hour=ist_hour).astimezone(timezone.utc)
-    return Report(id=id, category=ReportCategory.waterlogging, description="x" * 6, lat=lat, lng=lng,
-                  created_at=when, reporter_id=reporter, confirmations=conf, disputes=disp,
-                  trust_score=trust, severity=sev)
+    when = (NOW.astimezone(IST) - timedelta(days=days_ago)).replace(hour=ist_hour).astimezone(UTC)
+    return Report(
+        id=id,
+        category=ReportCategory.waterlogging,
+        description="x" * 6,
+        lat=lat,
+        lng=lng,
+        created_at=when,
+        reporter_id=reporter,
+        confirmations=conf,
+        disputes=disp,
+        trust_score=trust,
+        severity=sev,
+    )
 
 
 @pytest.mark.parametrize("hour,band", [(3, "late night"), (9, "morning"), (14, "afternoon"), (19, "evening"), (23, "night")])
@@ -31,9 +41,9 @@ def test_band_for(hour, band):
 def test_reputation_beta_prior_and_updates():
     reps = [rep("a", "alice", conf=3), rep("b", "alice", conf=2), rep("c", "bob", disp=2), rep("d", "carol")]
     r = reporter_reputation(reps)
-    assert r["alice"] == (3 / 4, 2)          # (2 good + 1) / (2 + 2)
-    assert r["bob"] == (1 / 3, 1)            # (0 + 1) / (1 + 2)
-    assert "carol" not in r                  # no judged reports -> nothing learned
+    assert r["alice"] == (3 / 4, 2)  # (2 good + 1) / (2 + 2)
+    assert r["bob"] == (1 / 3, 1)  # (0 + 1) / (1 + 2)
+    assert "carol" not in r  # no judged reports -> nothing learned
 
 
 def test_hotspot_model_learns_time_of_day_pattern():
@@ -71,8 +81,16 @@ def client(monkeypatch):
 
 
 def _new_report(client, reporter="reporter-0001"):
-    res = client.post("/api/reports", data={"category": "pothole", "description": "Crater near the signal",
-                                            "lat": 18.53, "lng": 73.86, "reporter_id": reporter})
+    res = client.post(
+        "/api/reports",
+        data={
+            "category": "pothole",
+            "description": "Crater near the signal",
+            "lat": 18.53,
+            "lng": 73.86,
+            "reporter_id": reporter,
+        },
+    )
     assert res.status_code == 201
     assert "reporter_id" not in res.json()  # anonymous id never leaks
     return res.json()
@@ -83,7 +101,7 @@ def test_confirm_votes_raise_trust_and_dispute_lowers(client):
     up = client.post(f"/api/reports/{r['id']}/vote", json={"vote": "confirm", "voter_id": "voter-aaaa1"}).json()
     assert up["confirmations"] == 1 and up["trust_score"] > r["trust_score"]
     down = client.post(f"/api/reports/{r['id']}/vote", json={"vote": "dispute", "voter_id": "voter-aaaa1"}).json()
-    assert down["confirmations"] == 0 and down["disputes"] == 1   # one vote per voter (changed mind)
+    assert down["confirmations"] == 0 and down["disputes"] == 1  # one vote per voter (changed mind)
     assert down["trust_score"] < r["trust_score"]
 
 
@@ -126,5 +144,5 @@ def test_reputation_feeds_back_into_trust(client):
 
 def test_single_report_is_not_a_pattern():
     model = HotspotModel().fit([rep("solo", ist_hour=18, trust=100, sev=3)], NOW)
-    assert model.risk(18.5012, 73.8638, 18)[0] > 0.6   # weight is high...
-    assert model.hotspots(18) == []                     # ...but one report is not "recurring"
+    assert model.risk(18.5012, 73.8638, 18)[0] > 0.6  # weight is high...
+    assert model.hotspots(18) == []  # ...but one report is not "recurring"
