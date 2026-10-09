@@ -44,6 +44,7 @@ class Place(BaseModel):
     cleanliness: float | None = Field(default=None, ge=0, le=5)
     tags: list[str] = []
     image: str | None = None
+    image_note: str | None = None  # set when the photo is representative, not of this exact place
     demo: bool = True
 
 

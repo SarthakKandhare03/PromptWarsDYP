@@ -97,9 +97,9 @@ export function CityMap({
               key={`${r.id}-${selected}`}
               positions={r.geometry}
               pathOptions={{
-                color: selected ? (r.is_safest ? '#C8FF55' : '#48E5FF') : '#94A3B8',
-                weight: selected ? 6 : 4,
-                opacity: selected ? 0.95 : 0.45,
+                color: selected ? (r.is_safest ? '#1F9D4A' : '#111111') : '#8A8F98',
+                weight: selected ? 6 : 5,
+                opacity: selected ? 0.95 : 0.5,
                 className: selected ? 'route-line' : undefined,
               }}
               eventHandlers={{ click: () => onRouteSelect?.(r.id) }}

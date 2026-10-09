@@ -44,7 +44,7 @@ app.add_middleware(
 _hits: dict[str, deque[float]] = defaultdict(deque)
 
 CSP = (
-    "default-src 'self'; img-src 'self' data: blob: https://tile.openstreetmap.org; "
+    "default-src 'self'; img-src 'self' data: blob: https://tile.openstreetmap.org https://thumb.wikimedia.org https://upload.wikimedia.org; "
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; "
     "script-src 'self'; connect-src 'self'; media-src 'self' blob:; frame-ancestors 'none'"
 )

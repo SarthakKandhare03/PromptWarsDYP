@@ -13,10 +13,9 @@ const LINKS = [
 
 export function BrandMark() {
   return (
-    <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden>
-      <circle cx="16" cy="16" r="4" fill="#48E5FF" />
-      <circle cx="16" cy="16" r="9" fill="none" stroke="#C8FF55" strokeWidth="1.5" opacity=".7" />
-      <circle cx="16" cy="16" r="13" fill="none" stroke="#A99BFF" strokeWidth="1" opacity=".4" />
+    <svg className="brand-mark" viewBox="0 0 24 24" aria-hidden>
+      <path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7z" fill="#111" />
+      <circle cx="12" cy="9" r="2.6" fill="#FFE14D" />
     </svg>
   )
 }
@@ -31,7 +30,7 @@ export function Layout() {
       <header className="nav">
         <div className="container">
           <NavLink to="/" className="brand" aria-label="CityPulse AI home">
-            <BrandMark /> CityPulse<small>AI</small>
+            <BrandMark /> CityPulse
           </NavLink>
           <nav className="nav-links" aria-label="Primary">
             {LINKS.map(({ to, label, Icon, end }) => (
@@ -40,9 +39,11 @@ export function Layout() {
               </NavLink>
             ))}
           </nav>
-          <span className={`ai-chip${aiEnabled ? ' on' : ''}`} title={aiEnabled ? 'Gemini connected' : 'No AI key configured: rule-based mode'}>
-            <span className="dot" aria-hidden /> {aiEnabled ? 'Gemini live' : 'Rules mode'}
-          </span>
+          <div className="nav-right">
+            <span className={`ai-chip${aiEnabled ? ' on' : ''}`} title={aiEnabled ? 'Gemini connected' : 'No AI key configured: rule-based mode'}>
+              <span className="dot" aria-hidden /> {aiEnabled ? 'Gemini live' : 'Rules mode'}
+            </span>
+          </div>
         </div>
       </header>
 
@@ -74,7 +75,7 @@ export function Layout() {
           </div>
           <div style={{ maxWidth: 520 }}>
             Data: places are real, but ratings, prices and accessibility are illustrative demo values. Seed incidents are labelled demo records.
-            Weather from Open-Meteo, routing from OSRM, map tiles © OpenStreetMap contributors. No score here ever means "safe".
+            Weather from Open-Meteo, routing from OSRM, map tiles © OpenStreetMap contributors. Photos: Wikimedia Commons contributors (via Wikipedia); dish and area photos are representative and labelled. No score here ever means "safe".
           </div>
         </div>
       </footer>

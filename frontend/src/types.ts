@@ -14,6 +14,8 @@ export interface Place {
   wheelchair: boolean | null
   cleanliness: number | null
   tags: string[]
+  image: string | null
+  image_note: string | null
   demo: boolean
 }
 

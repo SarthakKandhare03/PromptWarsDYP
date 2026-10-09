@@ -100,6 +100,33 @@ PLACES: list[Place] = [
        3, 4.6, 14, True, 4.6, ["boutique", "hotel", "demo"]),
 ]
 
+# Photos: Wikimedia Commons (via Wikipedia page images), credited in the UI footer.
+# `None` note = photo of the place itself; otherwise a labelled representative image.
+_W = "https://thumb.wikimedia.org/wikipedia/commons/thumb/"
+IMAGES: dict[str, tuple[str, str | None]] = {
+    "shaniwar-wada": (_W + "4/4d/Front_view_of_Shaniwar_Wada_illuminated.jpg/960px-Front_view_of_Shaniwar_Wada_illuminated.jpg", None),
+    "lal-mahal": (_W + "0/0e/Lal_Mahal%2C_Pune.jpg/960px-Lal_Mahal%2C_Pune.jpg", None),
+    "kasba-ganpati": (_W + "0/03/KasbaganpatiMandir.JPG/960px-KasbaganpatiMandir.JPG", None),
+    "dagdusheth": (_W + "a/a9/Dagdusheth_Ganpati_Temple_Decorated_during_Ganesh_Chaturti_September_2012_%281%29.JPG/960px-Dagdusheth_Ganpati_Temple_Decorated_during_Ganesh_Chaturti_September_2012_%281%29.JPG", None),
+    "vishrambaug-wada": (_W + "c/cd/Vishram_Baug_Wada.jpg/960px-Vishram_Baug_Wada.jpg", None),
+    "kelkar-museum": (_W + "6/6d/Building_of_Raja_Dinkar_Kelkar_Museum%2C_Pune.jpg/960px-Building_of_Raja_Dinkar_Kelkar_Museum%2C_Pune.jpg", None),
+    "aga-khan-palace": (_W + "c/cd/Pune_Palace.jpg/960px-Pune_Palace.jpg", None),
+    "pataleshwar": (_W + "3/3e/Pataleshwar_cave_temple.JPG/960px-Pataleshwar_cave_temple.JPG", None),
+    "parvati-hill": (_W + "9/95/Parvati.JPG/960px-Parvati.JPG", None),
+    "sinhagad": (_W + "f/f5/Sinhagad.jpg/960px-Sinhagad.jpg", None),
+    "tambat-ali": (_W + "f/f0/NatCopper.jpg/960px-NatCopper.jpg", "Representative: copper"),
+    "vaishali": (_W + "b/ba/Masala_Dosa_2023.jpg/960px-Masala_Dosa_2023.jpg", "Representative dish"),
+    "roopali": (_W + "b/ba/Masala_Dosa_2023.jpg/960px-Masala_Dosa_2023.jpg", "Representative dish"),
+    "bedekar-misal": (_W + "a/a0/Kolhapuri_Misal_Pav.jpg/960px-Kolhapuri_Misal_Pav.jpg", "Representative: misal pav"),
+    "george-restaurant": (_W + "5/5a/%22Hyderabadi_Dum_Biryani%22.jpg/960px-%22Hyderabadi_Dum_Biryani%22.jpg", "Representative: biryani"),
+    "goodluck-cafe": (_W + "0/00/Yazdani_Bakery_in_Fort.jpg/960px-Yazdani_Bakery_in_Fort.jpg", "Representative Irani cafe (Mumbai)"),
+    "kayani-bakery": (_W + "3/39/Shrewsbury_biscuits_%28with_fruit%29.JPG/960px-Shrewsbury_biscuits_%28with_fruit%29.JPG", "Representative: Shrewsbury biscuits"),
+    "demo-stay-camp": (_W + "5/52/MGRd_Pune_Camp.jpg/960px-MGRd_Pune_Camp.jpg", "Area photo: MG Road, Camp"),
+}
+for _place in PLACES:
+    if _place.id in IMAGES:
+        _place.image, _place.image_note = IMAGES[_place.id]
+
 PLACES_BY_ID = {p.id: p for p in PLACES}
 
 # (name, lat, lng) approximate points on publicly reported accident-prone corridors.

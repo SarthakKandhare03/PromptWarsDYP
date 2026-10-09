@@ -169,9 +169,9 @@ export function SafetyPage() {
             label="Safety map with routes, reports and accident-prone corridors"
           />
           <div className="float-panel tl glass legend">
-            <span><i style={{ background: 'var(--lime)' }} /> Selected (fewest known risks)</span>
-            <span><i style={{ background: 'var(--cyan)' }} /> Selected route</span>
-            <span><i style={{ background: 'var(--amber)' }} /> Community report</span>
+            <span><i style={{ background: '#1F9D4A' }} /> Selected · fewest known risks</span>
+            <span><i style={{ background: '#111' }} /> Selected route</span>
+            <span><i style={{ background: '#f59e0b' }} /> Community report</span>
             <span><i style={{ background: 'var(--red)' }} /> Severe / accident corridor</span>
           </div>
         </div>
