@@ -15,12 +15,7 @@ const LINKS = [
 ]
 
 export function BrandMark() {
-  return (
-    <svg className="brand-mark" viewBox="0 0 24 24" aria-hidden>
-      <path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7z" fill="currentColor" />
-      <circle cx="12" cy="9" r="2.6" fill="#FFE14D" />
-    </svg>
-  )
+  return <img className="brand-mark" src="/icons/icon-64.png" srcSet="/icons/icon-64.png 1x, /icons/icon-192.png 3x" width={34} height={34} alt="" aria-hidden />
 }
 
 export function Layout() {

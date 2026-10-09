@@ -12,3 +12,5 @@
 frontend/dist/
 dist/
 deploy/aws/
+e2e/
+design/

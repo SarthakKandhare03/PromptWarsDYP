@@ -87,7 +87,7 @@ Single container → Google Cloud Run
   - one Gemini call per request, with an LRU cache and a hard timeout
   - weather cached for 10 min
   - GZip, lazy-loaded routes, cached marker icons, no image assets
-- **Testing**: **57 pytest tests** covering:
+- **Testing**: **62 pytest tests** plus a **46-check end-to-end suite** (`e2e/smoke.mjs`, real Chrome on a 390 px phone and 1440 px desktop) covering:
   - geo maths
   - trust scoring (corroboration, weather and corridor cross-checks, caps)
   - night weighting and "insufficient data" in route safety
@@ -118,6 +118,20 @@ cd frontend && npm install && npm run dev        # http://localhost:5173
 # Tests
 cd backend && python -m pytest -q
 ```
+
+## End-to-end tests (mobile + desktop)
+`e2e/smoke.mjs` drives the system Chrome with puppeteer-core and checks:
+- every page on a **390 px phone** and a **1440 px desktop**: no runtime errors, no horizontal overflow, every control has an accessible name, and the bottom navigation on mobile
+- the flows: light/dark toggle, Marathi switch, safe-route scoring with the Google Maps handoff, report → review → submit (trust-scored), the Gemini chat answer, compare re-ranking, explore search, and the Ganeshotsav darshan route
+- the PWA manifest, favicon and welcome audio
+
+```bash
+cd e2e && npm install && node smoke.mjs                 # local (http://127.0.0.1:8000)
+node smoke.mjs https://punyat-kay-knd5p2vgxa-el.a.run.app  # live
+```
+
+## Brand
+The app icon (`design/logo.html` → `design/build_icons.py`) is a sunshine-yellow tile with Devanagari **पु** (for पुणे), a map pin with a marigold centre, and a marigold toran. It ships as the favicon, apple-touch icon and installable PWA icons (`manifest.json`).
 
 ## Deploy (Google Cloud Run)
 

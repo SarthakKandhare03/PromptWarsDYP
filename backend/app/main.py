@@ -95,6 +95,8 @@ async def security_and_rate_limit(request: Request, call_next):
     path = request.url.path
     if path.startswith("/assets/"):
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"  # hashed filenames
+    elif path.startswith(("/icons/", "/audio/")) or path in ("/favicon.ico", "/manifest.json"):
+        response.headers["Cache-Control"] = "public, max-age=86400"
     elif path.startswith("/api/"):
         response.headers.setdefault("Cache-Control", "no-store")
     if path.startswith("/api/"):

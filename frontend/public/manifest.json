@@ -1,0 +1,18 @@
+{
+  "name": "पुण्यात काय? · Pune city intelligence",
+  "short_name": "पुण्यात काय?",
+  "description": "Verified, context-aware city intelligence for Pune: explore, route safer, report and compare. English, हिंदी, मराठी.",
+  "lang": "mr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#faf7ec",
+  "theme_color": "#ffe14d",
+  "categories": ["travel", "navigation", "lifestyle"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

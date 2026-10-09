@@ -20,6 +20,6 @@ gcloud secrets add-iam-policy-binding gemini-api-key \
   --member="serviceAccount:${NUM}-compute@developer.gserviceaccount.com" --role=roles/secretmanager.secretAccessor >/dev/null
 
 gcloud run deploy "$SERVICE" --source . --region "$REGION" --allow-unauthenticated \
-  --memory 512Mi --max-instances 1 \
+  --memory 512Mi --min-instances 1 --max-instances 1 --cpu-boost \
   --set-env-vars GEMINI_MODEL=gemini-3.5-flash \
   --set-secrets GEMINI_API_KEY=gemini-api-key:latest

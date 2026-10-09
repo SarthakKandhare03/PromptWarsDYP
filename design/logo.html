@@ -1,0 +1,52 @@
+<!doctype html>
+<!--
+  पुण्यात काय? app icon source (512x512, transparent corners).
+  Render: chrome --headless=new --window-size=512,512 --default-background-color=00000000
+          --hide-scrollbars --virtual-time-budget=6000 --screenshot=logo-512.png file:///.../design/logo.html
+  Then: python design/build_icons.py  (writes all favicon / PWA sizes into frontend/public)
+-->
+<html lang="mr">
+<head>
+  <meta charset="utf-8" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Marathi&display=block" rel="stylesheet" />
+  <style>
+    html, body { margin: 0; width: 512px; height: 512px; background: transparent; overflow: hidden; }
+    /* Sunshine sticker tile, same yellow as the brand "काय?" sticker */
+    .tile {
+      position: absolute; inset: 12px; border-radius: 112px;
+      background: radial-gradient(circle at 28% 22%, #fff4b0 0%, #ffe14d 42%, #ffc531 100%);
+      box-shadow: inset 0 -14px 0 rgba(17, 17, 17, .10);
+    }
+    /* Marigold toran along the top edge: Pune festivals */
+    .toran { position: absolute; left: 12px; right: 12px; top: 12px; height: 40px; }
+    .toran i { position: absolute; top: 10px; width: 24px; height: 24px; border-radius: 50%; box-shadow: 0 2px 0 rgba(0,0,0,.12); }
+    /* Devanagari "पु" (first letter of पुणे) */
+    .glyph {
+      position: absolute; left: 34px; top: 66px; width: 360px; text-align: center;
+      font: 318px/1 'Tiro Devanagari Marathi', serif; color: #111; letter-spacing: 0;
+    }
+    .pin { position: absolute; right: 40px; top: 70px; width: 118px; height: 156px; filter: drop-shadow(0 6px 6px rgba(0,0,0,.18)); }
+  </style>
+</head>
+<body>
+  <div class="tile"></div>
+  <div class="toran" id="toran"></div>
+  <div class="glyph">पु</div>
+  <svg class="pin" viewBox="0 0 24 32" aria-hidden="true">
+    <path d="M12 1a10.5 10.5 0 0 0-10.5 10.5C1.5 19.4 12 31 12 31s10.5-11.6 10.5-19.5A10.5 10.5 0 0 0 12 1z" fill="#111" />
+    <circle cx="12" cy="11.3" r="4.6" fill="#ff7a00" />
+    <circle cx="12" cy="11.3" r="2" fill="#ffe14d" />
+  </svg>
+  <script>
+    const t = document.getElementById('toran')
+    for (let x = 104, i = 0; x < 390; x += 29, i++) {
+      const b = document.createElement('i')
+      b.style.left = `${x}px`
+      b.style.background = i % 2 ? '#ff7a00' : '#e85d04'
+      t.appendChild(b)
+    }
+  </script>
+</body>
+</html>

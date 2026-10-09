@@ -1,0 +1,12 @@
+{
+  "name": "punyat-kay-e2e",
+  "private": true,
+  "type": "module",
+  "description": "End-to-end smoke tests (mobile + desktop) driving the system Chrome via puppeteer-core.",
+  "scripts": {
+    "test": "node smoke.mjs"
+  },
+  "dependencies": {
+    "puppeteer-core": "^25.13.0"
+  }
+}
