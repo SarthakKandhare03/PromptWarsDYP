@@ -110,6 +110,10 @@ const D: Record<string, [string, string, string]> = {
   'land.how.4': ['Neighbours confirm', 'पड़ोसी पुष्टि करते हैं', 'शेजारी पुष्टी करतात'],
   'land.how.5': ['Routes adapt', 'रास्ते बदल जाते हैं', 'मार्ग बदलतात'],
   'land.live': ['Live from the city', 'शहर से लाइव', 'शहरातून थेट'],
+  'land.now': ['Right now in Pune', 'अभी पुणे में', 'आत्ता पुण्यात'],
+  'land.latest': ['Latest city signals', 'ताज़ा शहरी संकेत', 'ताजे शहर-संकेत'],
+  'land.tryAsk': ['Try asking', 'पूछकर देखें', 'विचारून पहा'],
+  'land.askBtn': ['Ask now', 'अभी पूछें', 'आता विचारा'],
   'land.finalSub': ['Let\'s explore Pune, the smart way.', 'चलिए, पुणे को समझदारी से जानें।', 'चला, पुणे नव्या नजरेने पाहूया.'],
 
   // ---------- city (home dashboard) ----------

@@ -36,15 +36,19 @@ function Marquee({ items, alt = false }: { items: string[]; alt?: boolean }) {
 }
 
 export function LandingPage() {
-  const { t, utsav, toggleUtsav } = useI18n()
-  const { places, reports, city } = useApp()
+  const { t, lang, utsav, toggleUtsav } = useI18n()
+  const { places, reports, city, pulse } = useApp()
+  const [clock, setClock] = useState(() => new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }))
   const [samples, setSamples] = useState(0)
   const [qi, setQi] = useState(0)
   const heroRef = useRef<HTMLElement>(null)
 
   useEffect(() => { api.hotspots().then((h) => setSamples(h.model.samples)).catch(() => undefined) }, [])
   useEffect(() => {
-    const id = setInterval(() => setQi((i) => (i + 1) % QUESTIONS.length), 2800)
+    const id = setInterval(() => {
+      setQi((i) => (i + 1) % QUESTIONS.length)
+      setClock(new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }))
+    }, 2800)
     return () => clearInterval(id)
   }, [])
 
@@ -72,61 +76,100 @@ export function LandingPage() {
         <div className="land-grid" aria-hidden />
         <div className="land-spot" aria-hidden />
 
-        {polaroids.map(({ p, style }, i) => p?.image && (
-          <motion.figure
-            key={p.id}
-            className="polaroid"
-            style={{ top: style.top, right: style.right, margin: 0 }}
-            initial={{ opacity: 0, y: 40, rotate: 0 }}
-            animate={{ opacity: 1, y: 0, rotate: style.rotate }}
-            transition={{ delay: 0.8 + i * 0.15, type: 'spring', stiffness: 80, damping: 14 }}
-            whileHover={{ scale: 1.06, rotate: 0, zIndex: 5 }}
-          >
-            <img src={p.image} alt={p.name} loading="eager" referrerPolicy="no-referrer" />
-            <span>{p.name}</span>
-          </motion.figure>
-        ))}
-
-        <div className="container land-inner">
-          <motion.span className="land-kicker" variants={fade} initial="hidden" animate="show" custom={-4}>
-            <span className="live-dot" aria-hidden /> {t('land.kicker')}
-          </motion.span>
-
-          <h1 className="land-title" lang="mr" aria-label="पुण्यात काय?">
-            <motion.span className="w" variants={rise} initial="hidden" animate="show" custom={0} aria-hidden>पुण्यात</motion.span>
-            <motion.span
-              className="w w2"
-              variants={rise} initial="hidden" animate="show" custom={1} aria-hidden
-              whileHover={{ rotate: -4, scale: 1.04 }}
-            >
-              काय?
+        <div className="container land-inner land-split">
+          <div>
+            <motion.span className="land-kicker" variants={fade} initial="hidden" animate="show" custom={-4}>
+              <span className="live-dot" aria-hidden /> {t('land.kicker')}
             </motion.span>
-          </h1>
 
-          <motion.p className="land-meaning" variants={fade} initial="hidden" animate="show" custom={1}>{t('land.meaning')}</motion.p>
-
-          <motion.div className="land-ask" variants={fade} initial="hidden" animate="show" custom={2} aria-live="polite">
-            <span className="muted">{t('land.ask')}</span>
-            <AnimatePresence mode="wait">
-              <motion.span
-                key={qi}
-                className="q"
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -14 }}
-                transition={{ duration: 0.35 }}
-              >
-                {t(QUESTIONS[qi])}
+            <h1 className="land-title" lang="mr" aria-label="पुण्यात काय?">
+              <motion.span className="w" variants={rise} initial="hidden" animate="show" custom={0} aria-hidden>पुण्यात</motion.span>
+              <motion.span className="w w2" variants={rise} initial="hidden" animate="show" custom={1} aria-hidden whileHover={{ rotate: -4, scale: 1.04 }}>
+                काय?
               </motion.span>
-            </AnimatePresence>
-          </motion.div>
+            </h1>
 
-          <motion.p className="land-lede" variants={fade} initial="hidden" animate="show" custom={3}>{t('land.lede')}</motion.p>
+            <motion.p className="land-meaning" variants={fade} initial="hidden" animate="show" custom={1}>{t('land.meaning')}</motion.p>
 
-          <motion.div className="land-ctas" variants={fade} initial="hidden" animate="show" custom={4}>
-            <Link to="/city" className="btn primary xl">{t('land.cta')} <ArrowRight size={18} aria-hidden /></Link>
-            <Link to="/safety" className="btn xl">{t('land.cta2')}</Link>
-          </motion.div>
+            <motion.div className="land-ask" variants={fade} initial="hidden" animate="show" custom={2} aria-live="polite">
+              <span className="muted">{t('land.ask')}</span>
+              <AnimatePresence mode="wait">
+                <motion.span key={qi} className="q" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} transition={{ duration: 0.35 }}>
+                  {t(QUESTIONS[qi])}
+                </motion.span>
+              </AnimatePresence>
+            </motion.div>
+
+            <motion.p className="land-lede" variants={fade} initial="hidden" animate="show" custom={3}>{t('land.lede')}</motion.p>
+
+            <motion.div className="land-ctas" variants={fade} initial="hidden" animate="show" custom={4}>
+              <Link to="/city" className="btn primary xl">{t('land.cta')} <ArrowRight size={18} aria-hidden /></Link>
+              <Link to="/safety" className="btn xl">{t('land.cta2')}</Link>
+            </motion.div>
+          </div>
+
+          {/* ---------- right: live city panel, built from real app state ---------- */}
+          <div className="live-stage">
+            {polaroids.slice(0, 2).map(({ p }, i) => p?.image && (
+              <motion.figure
+                key={p.id}
+                className={`polaroid pol-${i}`}
+                initial={{ opacity: 0, y: 40, rotate: 0 }}
+                animate={{ opacity: 1, y: 0, rotate: i === 0 ? 8 : -9 }}
+                transition={{ delay: 0.9 + i * 0.15, type: 'spring', stiffness: 80, damping: 14 }}
+                whileHover={{ scale: 1.06, rotate: 0, zIndex: 5 }}
+              >
+                <img src={p.image} alt={p.name} referrerPolicy="no-referrer" />
+                <span>{p.name}</span>
+              </motion.figure>
+            ))}
+
+            <motion.aside
+              className="live-panel"
+              aria-label={t('land.now')}
+              initial={{ opacity: 0, y: 40, rotate: 2 }}
+              animate={{ opacity: 1, y: 0, rotate: -1.2 }}
+              transition={{ delay: 0.5, type: 'spring', stiffness: 70, damping: 15 }}
+            >
+              <div className="lp-head">
+                <span className="lp-title"><span className="live-dot" aria-hidden /> {t('land.now')}</span>
+                <span className="tiny muted">{clock} IST</span>
+              </div>
+
+              <div className="lp-weather">
+                <div>
+                  <strong>{pulse?.weather.available ? `${Math.round(pulse.weather.temperature_c ?? 0)}°` : '—'}</strong>
+                  <span className="tiny muted">{pulse?.weather.available ? t('pulse.rain', { a: pulse.weather.recent_rain_mm ?? 0, b: pulse.weather.next_6h_rain_mm ?? 0 }) : t('pulse.noWeather')}</span>
+                </div>
+                <div className="lp-chaos">
+                  <span className="tiny muted">{t('pulse.chaos')}</span>
+                  <strong><Counter value={pulse?.chaos_index ?? 0} /></strong>
+                  <div className="trust-meter" style={{ width: 110 }}><motion.i initial={{ width: 0 }} animate={{ width: `${pulse?.chaos_index ?? 0}%` }} transition={{ duration: 1.4, delay: 1 }} style={{ background: 'linear-gradient(90deg, #3aa84a, #f5b13d, #e5484d)' }} /></div>
+                </div>
+              </div>
+
+              <div className="lp-section">
+                <span className="tiny muted">{t('land.latest')}</span>
+                {reports.slice(0, 3).map((r, i) => (
+                  <motion.div key={r.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 1.1 + i * 0.12 }}>
+                    <Link to={`/safety?report=${r.id}`} className="lp-row">
+                      <span className={`lp-dot${r.severity >= 3 ? ' s3' : ''}`} aria-hidden />
+                      <span className="lp-txt"><strong>{t(`cat.${r.category}`)}</strong><span className="muted"> · {r.age}</span></span>
+                      <TrustBadge label={r.trust_label} />
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+
+              <div className="lp-ask">
+                <span className="tiny muted">{t('land.tryAsk')}</span>
+                <div className="lp-bubble" lang={lang}>{t(QUESTIONS[qi])}</div>
+                <button className="btn primary sm" onClick={() => window.dispatchEvent(new CustomEvent('pk:ask', { detail: t(QUESTIONS[qi]) }))}>
+                  {t('land.askBtn')} <ArrowRight size={14} aria-hidden />
+                </button>
+              </div>
+            </motion.aside>
+          </div>
         </div>
 
         <Link to="/city" className="badge-spin" aria-label={t('land.cta')}>

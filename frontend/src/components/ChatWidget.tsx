@@ -30,6 +30,17 @@ export function ChatWidget() {
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { if (open) inputRef.current?.focus() }, [open])
+
+  // Other parts of the app can open the assistant with a question: dispatch 'pk:ask'.
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      const q = (e as CustomEvent<string>).detail
+      setOpen(true)
+      if (typeof q === 'string') void sendRef.current(q)
+    }
+    window.addEventListener('pk:ask', onAsk)
+    return () => window.removeEventListener('pk:ask', onAsk)
+  }, [])
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
   }, [msgs, busy])
@@ -51,6 +62,9 @@ export function ChatWidget() {
       setBusy(false)
     }
   }
+
+  const sendRef = useRef(send)
+  sendRef.current = send
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
