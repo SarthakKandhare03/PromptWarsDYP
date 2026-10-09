@@ -24,6 +24,12 @@ _load_dotenv(_ROOT / ".env")
 _load_dotenv(_ROOT / "backend" / ".env")
 
 
+def _default_static_dir() -> Path:
+    """Bundled deploys ship the SPA in ./static next to app/; local dev uses frontend/dist."""
+    bundled = Path(__file__).resolve().parents[1] / "static"
+    return bundled if bundled.is_dir() else _ROOT / "frontend" / "dist"
+
+
 @dataclass(frozen=True)
 class Settings:
     gemini_api_key: str | None
@@ -55,7 +61,7 @@ def get_settings() -> Settings:
         http_timeout_s=float(os.getenv("HTTP_TIMEOUT_S", "6")),
         rate_limit_per_minute=int(os.getenv("RATE_LIMIT_PER_MINUTE", "60")),
         max_upload_bytes=int(os.getenv("MAX_UPLOAD_BYTES", str(5 * 1024 * 1024))),
-        static_dir=Path(os.getenv("STATIC_DIR", str(_ROOT / "frontend" / "dist"))),
+        static_dir=Path(os.getenv("STATIC_DIR") or _default_static_dir()),
         allowed_origins=tuple(o.strip() for o in origins.split(",") if o.strip()),
     )
 
