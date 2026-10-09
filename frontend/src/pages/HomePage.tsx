@@ -113,10 +113,10 @@ export function HomePage() {
                     <div className="row between">
                       <span className="eyebrow lav"><Sparkles size={12} aria-hidden /> CityPulse answer</span>
                       <span className={`badge ${answer.engine === 'rules' ? 'demo' : 'ai'}`}>
-                        {answer.engine === 'rules' ? 'Rule-based (no AI key)' : 'Gemini · grounded in Google Maps'}
+                        {answer.engine === 'rules' ? 'Rule-based (AI unavailable)' : answer.engine === 'gemini' ? 'Gemini · CityPulse dataset' : 'Gemini · grounded in Google Maps'}
                       </span>
                     </div>
-                    <pre>{answer.answer}</pre>
+                    <pre>{answer.answer.replace(/\*\*(.+?)\*\*/g, '$1').replace(/^\s*[*-]\s+/gm, '• ')}</pre>
                     <div className="meta">
                       <span>Answered {new Date(answer.answered_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       {answer.sources.filter((s) => s.uri).map((s) => (

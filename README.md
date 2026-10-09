@@ -105,7 +105,7 @@ cd backend && python -m pytest -q
 
 ```bash
 gcloud run deploy citypulse-ai --source . --region asia-south1 --allow-unauthenticated \
-  --set-env-vars GEMINI_MODEL=gemini-2.5-flash --set-secrets GEMINI_API_KEY=gemini-api-key:latest
+  --set-env-vars GEMINI_MODEL=gemini-3.5-flash --set-secrets GEMINI_API_KEY=gemini-api-key:latest
 ```
 
 ## Data sources and honesty notes

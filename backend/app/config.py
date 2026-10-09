@@ -28,6 +28,7 @@ _load_dotenv(_ROOT / "backend" / ".env")
 class Settings:
     gemini_api_key: str | None
     gemini_model: str
+    gemini_fallback_models: tuple[str, ...]
     gemini_timeout_s: float
     http_timeout_s: float
     rate_limit_per_minute: int
@@ -44,7 +45,12 @@ def get_settings() -> Settings:
     origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
     return Settings(
         gemini_api_key=os.getenv("GEMINI_API_KEY") or None,
-        gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+        gemini_model=os.getenv("GEMINI_MODEL", "gemini-3.5-flash"),
+        gemini_fallback_models=tuple(
+            m.strip()
+            for m in os.getenv("GEMINI_FALLBACK_MODELS", "gemini-flash-latest,gemini-3.8-flash,gemini-3.5-flash-lite").split(",")
+            if m.strip()
+        ),
         gemini_timeout_s=float(os.getenv("GEMINI_TIMEOUT_S", "20")),
         http_timeout_s=float(os.getenv("HTTP_TIMEOUT_S", "6")),
         rate_limit_per_minute=int(os.getenv("RATE_LIMIT_PER_MINUTE", "60")),

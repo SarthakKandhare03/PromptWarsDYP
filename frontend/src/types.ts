@@ -117,6 +117,6 @@ export interface AssistantAnswer {
   sources: { title: string; uri: string }[]
   place_ids: string[]
   report_ids: string[]
-  engine: 'gemini+maps' | 'rules'
+  engine: 'gemini+maps' | 'gemini' | 'rules'
   answered_at: string
 }

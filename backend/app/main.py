@@ -275,10 +275,15 @@ async def assistant(req: AssistantRequest):
     reps = store.all()
     if settings.ai_enabled:
         brief = "; ".join(f"{r.category.value} near ({r.lat:.3f},{r.lng:.3f}) {r.trust_label}" for r in reps[:8])
-        ai = await gemini.ask_assistant(req.query, loc, brief)
+        places_brief = "; ".join(
+            f"{p.name} [{p.category.value}, {p.area}, {'₹' * p.price_level}, {', '.join(p.tags[:3])}]" for p in PLACES
+        )
+        ai = await gemini.ask_assistant(req.query, loc, brief, places_brief)
         if ai:
+            if ai["engine"] == "gemini":
+                ai["sources"] = [{"title": "CityPulse Pune dataset (demo values)", "uri": ""}]
             return {**ai, "place_ids": match_place_ids(ai["answer"], PLACES), "report_ids": [],
-                    "engine": "gemini+maps", "answered_at": utcnow().isoformat()}
+                    "answered_at": utcnow().isoformat()}
     fallback = rule_based_answer(req.query, PLACES, reps)
     return {**fallback, "sources": [{"title": "CityPulse Pune demo dataset", "uri": ""}],
             "engine": "rules", "answered_at": utcnow().isoformat()}
