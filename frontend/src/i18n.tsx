@@ -364,6 +364,13 @@ const D: Record<string, [string, string, string]> = {
   'chat.close': ['Close city assistant', 'शहर सहायक बंद करें', 'शहर सहाय्यक बंद करा'],
   'chat.send': ['Send', 'भेजें', 'पाठवा'],
   'chat.msg': ['Message', 'संदेश', 'संदेश'],
+  'chat.mic': ['Speak your question', 'अपना सवाल बोलें', 'तुमचा प्रश्न बोला'],
+  'chat.micStop': ['Stop listening', 'सुनना बंद करें', 'ऐकणे थांबवा'],
+  'chat.listening': ['Listening… speak now', 'सुन रहा हूँ… बोलिए', 'ऐकतोय… बोला'],
+  'chat.read': ['Read aloud', 'पढ़कर सुनाएं', 'वाचून दाखवा'],
+  'chat.stopRead': ['Stop reading', 'पढ़ना रोकें', 'वाचन थांबवा'],
+  'chat.expand': ['Expand chat', 'चैट बड़ा करें', 'चॅट मोठे करा'],
+  'chat.shrink': ['Shrink chat', 'चैट छोटा करें', 'चॅट लहान करा'],
   'chat.thinking': ['Thinking', 'सोच रहा है', 'विचार करत आहे'],
   'chat.error': ['Something went wrong. Try again.', 'कुछ गड़बड़ हुई। फिर कोशिश करें।', 'काहीतरी चुकलं. पुन्हा प्रयत्न करा.'],
 }

@@ -68,6 +68,7 @@ export function LandingPage() {
   ]
   const latest = reports[0]
   const strip = ['lal-mahal', 'pataleshwar', 'kelkar-museum', 'aga-khan-palace'].map(photo).filter(Boolean)
+  const statImgs = ['kasba-ganpati', 'parvati-hill', 'vishrambaug-wada', 'sinhagad'].map(photo)
 
   return (
     <div className="land">
@@ -199,9 +200,12 @@ export function LandingPage() {
               { n: city?.accident_zones.length ?? 0, label: t('land.stat.corridors') },
               { n: 3, label: t('land.stat.langs') },
             ].map((s, i) => (
-              <motion.div key={i} className="stat-big" initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }}>
+              <motion.div key={i} className="stat-big stat-photo" whileHover={{ y: -6 }} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }}>
+                {statImgs[i]?.image && <img src={statImgs[i]!.image!} alt="" aria-hidden loading="lazy" referrerPolicy="no-referrer" />}
+                <div className="stat-shade" aria-hidden />
                 <strong><Counter value={s.n} duration={1400} /></strong>
                 <span>{s.label}</span>
+                {statImgs[i] && <em>{statImgs[i]!.name}</em>}
               </motion.div>
             ))}
           </div>
